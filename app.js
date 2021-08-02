@@ -232,6 +232,87 @@ var _JsArray_appendN = F3(function(n, dest, source)
 
 
 
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === elm$core$Basics$EQ ? 0 : ord === elm$core$Basics$LT ? -1 : 1;
+	}));
+});
+
+
+
 // LOG
 
 var _Debug_log_UNUSED = F2(function(tag, value)
@@ -709,87 +790,6 @@ function _Utils_ap(xs, ys)
 	}
 	return root;
 }
-
-
-
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === elm$core$Basics$EQ ? 0 : ord === elm$core$Basics$LT ? -1 : 1;
-	}));
-});
 
 
 
@@ -4394,29 +4394,25 @@ function _Browser_load(url)
 }
 var author$project$AvitoApp$CellNormal = {$: 'CellNormal'};
 var author$project$AvitoApp$initCell = {status: author$project$AvitoApp$CellNormal, value: ''};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$OnInput = function (a) {
-	return {$: 'OnInput', a: a};
+var elm$core$Maybe$Just = function (a) {
+	return {$: 'Just', a: a};
 };
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput = function (toMsg) {
-	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$OnInput(toMsg);
+var elm$core$Maybe$Nothing = {$: 'Nothing'};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$screenSizeOption = function (size) {
+	switch (size.$) {
+		case 'XS':
+			return elm$core$Maybe$Nothing;
+		case 'SM':
+			return elm$core$Maybe$Just('sm');
+		case 'MD':
+			return elm$core$Maybe$Just('md');
+		case 'LG':
+			return elm$core$Maybe$Just('lg');
+		default:
+			return elm$core$Maybe$Just('xl');
+	}
 };
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Size = function (a) {
-	return {$: 'Size', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$SM = {$: 'SM'};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small = EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Size(EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$SM);
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Text = {$: 'Text'};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Input = function (a) {
-	return {$: 'Input', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Type = function (a) {
-	return {$: 'Type', a: a};
-};
-var elm$core$Basics$identity = function (x) {
-	return x;
-};
-var elm$core$Basics$EQ = {$: 'EQ'};
-var elm$core$Basics$LT = {$: 'LT'};
+var elm$core$Basics$True = {$: 'True'};
 var elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var elm$core$Array$foldr = F3(
 	function (func, baseCase, _n0) {
@@ -4438,6 +4434,9 @@ var elm$core$Array$foldr = F3(
 			A3(elm$core$Elm$JsArray$foldr, func, baseCase, tail),
 			tree);
 	});
+var elm$core$Basics$EQ = {$: 'EQ'};
+var elm$core$Basics$LT = {$: 'LT'};
+var elm$core$List$cons = _List_cons;
 var elm$core$Array$toList = function (array) {
 	return A3(elm$core$Array$foldr, elm$core$List$cons, _List_Nil, array);
 };
@@ -4494,117 +4493,98 @@ var elm$core$Set$toList = function (_n0) {
 	var dict = _n0.a;
 	return elm$core$Dict$keys(dict);
 };
-var elm$core$List$cons = _List_cons;
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$create = F2(
-	function (tipe, options) {
-		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Input(
-			{
-				options: A2(
-					elm$core$List$cons,
-					EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Type(tipe),
-					options)
-			});
-	});
 var elm$core$Basics$append = _Utils_append;
-var elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$applyModifier = F2(
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$applyModifier = F2(
 	function (modifier, options) {
 		switch (modifier.$) {
 			case 'Size':
-				var size_ = modifier.a;
+				var size = modifier.a;
 				return _Utils_update(
 					options,
 					{
-						size: elm$core$Maybe$Just(size_)
+						size: elm$core$Maybe$Just(size)
 					});
-			case 'Id':
-				var id_ = modifier.a;
+			case 'Coloring':
+				var coloring = modifier.a;
 				return _Utils_update(
 					options,
 					{
-						id: elm$core$Maybe$Just(id_)
+						coloring: elm$core$Maybe$Just(coloring)
 					});
-			case 'Type':
-				var tipe = modifier.a;
+			case 'Block':
 				return _Utils_update(
 					options,
-					{tipe: tipe});
+					{block: true});
 			case 'Disabled':
 				var val = modifier.a;
 				return _Utils_update(
 					options,
 					{disabled: val});
-			case 'Value':
-				var value_ = modifier.a;
-				return _Utils_update(
-					options,
-					{
-						value: elm$core$Maybe$Just(value_)
-					});
-			case 'Placeholder':
-				var value_ = modifier.a;
-				return _Utils_update(
-					options,
-					{
-						placeholder: elm$core$Maybe$Just(value_)
-					});
-			case 'OnInput':
-				var onInput_ = modifier.a;
-				return _Utils_update(
-					options,
-					{
-						onInput: elm$core$Maybe$Just(onInput_)
-					});
-			case 'Validation':
-				var validation_ = modifier.a;
-				return _Utils_update(
-					options,
-					{
-						validation: elm$core$Maybe$Just(validation_)
-					});
-			case 'Readonly':
-				var val = modifier.a;
-				return _Utils_update(
-					options,
-					{readonly: val});
 			default:
-				var attrs_ = modifier.a;
+				var attrs = modifier.a;
 				return _Utils_update(
 					options,
 					{
-						attributes: _Utils_ap(options.attributes, attrs_)
+						attributes: _Utils_ap(options.attributes, attrs)
 					});
 		}
 	});
 var elm$core$Basics$False = {$: 'False'};
-var elm$core$Maybe$Nothing = {$: 'Nothing'};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$defaultOptions = {attributes: _List_Nil, disabled: false, id: elm$core$Maybe$Nothing, onInput: elm$core$Maybe$Nothing, placeholder: elm$core$Maybe$Nothing, readonly: false, size: elm$core$Maybe$Nothing, tipe: EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Text, validation: elm$core$Maybe$Nothing, value: elm$core$Maybe$Nothing};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$screenSizeOption = function (size) {
-	switch (size.$) {
-		case 'XS':
-			return elm$core$Maybe$Nothing;
-		case 'SM':
-			return elm$core$Maybe$Just('sm');
-		case 'MD':
-			return elm$core$Maybe$Just('md');
-		case 'LG':
-			return elm$core$Maybe$Just('lg');
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$defaultOptions = {attributes: _List_Nil, block: false, coloring: elm$core$Maybe$Nothing, disabled: false, size: elm$core$Maybe$Nothing};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$roleClass = function (role) {
+	switch (role.$) {
+		case 'Primary':
+			return 'primary';
+		case 'Secondary':
+			return 'secondary';
+		case 'Success':
+			return 'success';
+		case 'Info':
+			return 'info';
+		case 'Warning':
+			return 'warning';
+		case 'Danger':
+			return 'danger';
+		case 'Dark':
+			return 'dark';
+		case 'Light':
+			return 'light';
 		default:
-			return elm$core$Maybe$Just('xl');
+			return 'link';
 	}
 };
 var elm$core$Basics$apL = F2(
 	function (f, x) {
 		return f(x);
 	});
-var elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return elm$core$Maybe$Just(
-				f(value));
+var elm$core$Basics$apR = F2(
+	function (x, f) {
+		return f(x);
+	});
+var elm$core$List$foldl = F3(
+	function (func, acc, list) {
+		foldl:
+		while (true) {
+			if (!list.b) {
+				return acc;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				var $temp$func = func,
+					$temp$acc = A2(func, x, acc),
+					$temp$list = xs;
+				func = $temp$func;
+				acc = $temp$acc;
+				list = $temp$list;
+				continue foldl;
+			}
+		}
+	});
+var elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
 		} else {
 			return elm$core$Maybe$Nothing;
 		}
@@ -4632,25 +4612,6 @@ var elm$core$Array$SubTree = function (a) {
 	return {$: 'SubTree', a: a};
 };
 var elm$core$Elm$JsArray$initializeFromList = _JsArray_initializeFromList;
-var elm$core$List$foldl = F3(
-	function (func, acc, list) {
-		foldl:
-		while (true) {
-			if (!list.b) {
-				return acc;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				var $temp$func = func,
-					$temp$acc = A2(func, x, acc),
-					$temp$list = xs;
-				func = $temp$func;
-				acc = $temp$acc;
-				list = $temp$list;
-				continue foldl;
-			}
-		}
-	});
 var elm$core$List$reverse = function (list) {
 	return A3(elm$core$List$foldl, elm$core$List$cons, _List_Nil, list);
 };
@@ -4675,10 +4636,6 @@ var elm$core$Array$compressNodes = F2(
 				continue compressNodes;
 			}
 		}
-	});
-var elm$core$Basics$apR = F2(
-	function (x, f) {
-		return f(x);
 	});
 var elm$core$Basics$eq = _Utils_equal;
 var elm$core$Tuple$first = function (_n0) {
@@ -4782,7 +4739,6 @@ var elm$core$Result$Err = function (a) {
 var elm$core$Result$Ok = function (a) {
 	return {$: 'Ok', a: a};
 };
-var elm$core$Basics$True = {$: 'True'};
 var elm$core$Result$isOk = function (result) {
 	if (result.$ === 'Ok') {
 		return true;
@@ -4995,6 +4951,9 @@ var elm$json$Json$Decode$errorToStringHelp = F2(
 		}
 	});
 var elm$json$Json$Encode$string = _Json_wrap;
+var elm$core$Basics$identity = function (x) {
+	return x;
+};
 var elm$json$Json$Decode$map = _Json_map1;
 var elm$json$Json$Decode$map2 = _Json_map2;
 var elm$json$Json$Decode$succeed = _Json_succeed;
@@ -5018,59 +4977,6 @@ var elm$html$Html$Attributes$stringProperty = F2(
 			elm$json$Json$Encode$string(string));
 	});
 var elm$html$Html$Attributes$class = elm$html$Html$Attributes$stringProperty('className');
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$sizeAttribute = function (size) {
-	return A2(
-		elm$core$Maybe$map,
-		function (s) {
-			return elm$html$Html$Attributes$class('form-control-' + s);
-		},
-		EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$screenSizeOption(size));
-};
-var elm$html$Html$Attributes$type_ = elm$html$Html$Attributes$stringProperty('type');
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$typeAttribute = function (inputType) {
-	return elm$html$Html$Attributes$type_(
-		function () {
-			switch (inputType.$) {
-				case 'Text':
-					return 'text';
-				case 'Password':
-					return 'password';
-				case 'DatetimeLocal':
-					return 'datetime-local';
-				case 'Date':
-					return 'date';
-				case 'Month':
-					return 'month';
-				case 'Time':
-					return 'time';
-				case 'Week':
-					return 'week';
-				case 'Number':
-					return 'number';
-				case 'Email':
-					return 'email';
-				case 'Url':
-					return 'url';
-				case 'Search':
-					return 'search';
-				case 'Tel':
-					return 'tel';
-				default:
-					return 'color';
-			}
-		}());
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$FormInternal$validationToString = function (validation) {
-	if (validation.$ === 'Success') {
-		return 'is-valid';
-	} else {
-		return 'is-invalid';
-	}
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$validationAttribute = function (validation) {
-	return elm$html$Html$Attributes$class(
-		EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$FormInternal$validationToString(validation));
-};
 var elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
 		if (!ls.b) {
@@ -5126,6 +5032,307 @@ var elm$core$List$foldr = F3(
 	function (fn, acc, ls) {
 		return A4(elm$core$List$foldrHelper, fn, acc, 0, ls);
 	});
+var elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
+var elm$core$Tuple$second = function (_n0) {
+	var y = _n0.b;
+	return y;
+};
+var elm$html$Html$Attributes$classList = function (classes) {
+	return elm$html$Html$Attributes$class(
+		A2(
+			elm$core$String$join,
+			' ',
+			A2(
+				elm$core$List$map,
+				elm$core$Tuple$first,
+				A2(elm$core$List$filter, elm$core$Tuple$second, classes))));
+};
+var elm$json$Json$Encode$bool = _Json_wrap;
+var elm$html$Html$Attributes$boolProperty = F2(
+	function (key, bool) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			elm$json$Json$Encode$bool(bool));
+	});
+var elm$html$Html$Attributes$disabled = elm$html$Html$Attributes$boolProperty('disabled');
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$buttonAttributes = function (modifiers) {
+	var options = A3(elm$core$List$foldl, EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$applyModifier, EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$defaultOptions, modifiers);
+	return _Utils_ap(
+		_List_fromArray(
+			[
+				elm$html$Html$Attributes$classList(
+				_List_fromArray(
+					[
+						_Utils_Tuple2('btn', true),
+						_Utils_Tuple2('btn-block', options.block),
+						_Utils_Tuple2('disabled', options.disabled)
+					])),
+				elm$html$Html$Attributes$disabled(options.disabled)
+			]),
+		_Utils_ap(
+			function () {
+				var _n0 = A2(elm$core$Maybe$andThen, EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$screenSizeOption, options.size);
+				if (_n0.$ === 'Just') {
+					var s = _n0.a;
+					return _List_fromArray(
+						[
+							elm$html$Html$Attributes$class('btn-' + s)
+						]);
+				} else {
+					return _List_Nil;
+				}
+			}(),
+			_Utils_ap(
+				function () {
+					var _n1 = options.coloring;
+					if (_n1.$ === 'Just') {
+						if (_n1.a.$ === 'Roled') {
+							var role = _n1.a.a;
+							return _List_fromArray(
+								[
+									elm$html$Html$Attributes$class(
+									'btn-' + EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$roleClass(role))
+								]);
+						} else {
+							var role = _n1.a.a;
+							return _List_fromArray(
+								[
+									elm$html$Html$Attributes$class(
+									'btn-outline-' + EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$roleClass(role))
+								]);
+						}
+					} else {
+						return _List_Nil;
+					}
+				}(),
+				options.attributes)));
+};
+var elm$html$Html$button = _VirtualDom_node('button');
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$button = F2(
+	function (options, children) {
+		return A2(
+			elm$html$Html$button,
+			EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$buttonAttributes(options),
+			children);
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$Attrs = function (a) {
+	return {$: 'Attrs', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$attrs = function (attrs_) {
+	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$Attrs(attrs_);
+};
+var elm$virtual_dom$VirtualDom$MayPreventDefault = function (a) {
+	return {$: 'MayPreventDefault', a: a};
+};
+var elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var elm$html$Html$Events$preventDefaultOn = F2(
+	function (event, decoder) {
+		return A2(
+			elm$virtual_dom$VirtualDom$on,
+			event,
+			elm$virtual_dom$VirtualDom$MayPreventDefault(decoder));
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$onClick = function (message) {
+	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$attrs(
+		_List_fromArray(
+			[
+				A2(
+				elm$html$Html$Events$preventDefaultOn,
+				'click',
+				elm$json$Json$Decode$succeed(
+					_Utils_Tuple2(message, true)))
+			]));
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$SM = {$: 'SM'};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$Size = function (a) {
+	return {$: 'Size', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$small = EdutainmentLIVE$elm_bootstrap$Bootstrap$Internal$Button$Size(EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$SM);
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$OnInput = function (a) {
+	return {$: 'OnInput', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput = function (toMsg) {
+	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$OnInput(toMsg);
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Size = function (a) {
+	return {$: 'Size', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small = EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Size(EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$SM);
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Text = {$: 'Text'};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Input = function (a) {
+	return {$: 'Input', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Type = function (a) {
+	return {$: 'Type', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$create = F2(
+	function (tipe, options) {
+		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Input(
+			{
+				options: A2(
+					elm$core$List$cons,
+					EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Type(tipe),
+					options)
+			});
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$applyModifier = F2(
+	function (modifier, options) {
+		switch (modifier.$) {
+			case 'Size':
+				var size_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						size: elm$core$Maybe$Just(size_)
+					});
+			case 'Id':
+				var id_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						id: elm$core$Maybe$Just(id_)
+					});
+			case 'Type':
+				var tipe = modifier.a;
+				return _Utils_update(
+					options,
+					{tipe: tipe});
+			case 'Disabled':
+				var val = modifier.a;
+				return _Utils_update(
+					options,
+					{disabled: val});
+			case 'Value':
+				var value_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						value: elm$core$Maybe$Just(value_)
+					});
+			case 'Placeholder':
+				var value_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						placeholder: elm$core$Maybe$Just(value_)
+					});
+			case 'OnInput':
+				var onInput_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						onInput: elm$core$Maybe$Just(onInput_)
+					});
+			case 'Validation':
+				var validation_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						validation: elm$core$Maybe$Just(validation_)
+					});
+			case 'Readonly':
+				var val = modifier.a;
+				return _Utils_update(
+					options,
+					{readonly: val});
+			default:
+				var attrs_ = modifier.a;
+				return _Utils_update(
+					options,
+					{
+						attributes: _Utils_ap(options.attributes, attrs_)
+					});
+		}
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$defaultOptions = {attributes: _List_Nil, disabled: false, id: elm$core$Maybe$Nothing, onInput: elm$core$Maybe$Nothing, placeholder: elm$core$Maybe$Nothing, readonly: false, size: elm$core$Maybe$Nothing, tipe: EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Text, validation: elm$core$Maybe$Nothing, value: elm$core$Maybe$Nothing};
+var elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return elm$core$Maybe$Nothing;
+		}
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$sizeAttribute = function (size) {
+	return A2(
+		elm$core$Maybe$map,
+		function (s) {
+			return elm$html$Html$Attributes$class('form-control-' + s);
+		},
+		EdutainmentLIVE$elm_bootstrap$Bootstrap$General$Internal$screenSizeOption(size));
+};
+var elm$html$Html$Attributes$type_ = elm$html$Html$Attributes$stringProperty('type');
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$typeAttribute = function (inputType) {
+	return elm$html$Html$Attributes$type_(
+		function () {
+			switch (inputType.$) {
+				case 'Text':
+					return 'text';
+				case 'Password':
+					return 'password';
+				case 'DatetimeLocal':
+					return 'datetime-local';
+				case 'Date':
+					return 'date';
+				case 'Month':
+					return 'month';
+				case 'Time':
+					return 'time';
+				case 'Week':
+					return 'week';
+				case 'Number':
+					return 'number';
+				case 'Email':
+					return 'email';
+				case 'Url':
+					return 'url';
+				case 'Search':
+					return 'search';
+				case 'Tel':
+					return 'tel';
+				default:
+					return 'color';
+			}
+		}());
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$FormInternal$validationToString = function (validation) {
+	if (validation.$ === 'Success') {
+		return 'is-valid';
+	} else {
+		return 'is-invalid';
+	}
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$validationAttribute = function (validation) {
+	return elm$html$Html$Attributes$class(
+		EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$FormInternal$validationToString(validation));
+};
 var elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
 		var _n0 = f(mx);
@@ -5144,24 +5351,6 @@ var elm$core$List$filterMap = F2(
 			_List_Nil,
 			xs);
 	});
-var elm$core$Maybe$andThen = F2(
-	function (callback, maybeValue) {
-		if (maybeValue.$ === 'Just') {
-			var value = maybeValue.a;
-			return callback(value);
-		} else {
-			return elm$core$Maybe$Nothing;
-		}
-	});
-var elm$json$Json$Encode$bool = _Json_wrap;
-var elm$html$Html$Attributes$boolProperty = F2(
-	function (key, bool) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			elm$json$Json$Encode$bool(bool));
-	});
-var elm$html$Html$Attributes$disabled = elm$html$Html$Attributes$boolProperty('disabled');
 var elm$html$Html$Attributes$id = elm$html$Html$Attributes$stringProperty('id');
 var elm$html$Html$Attributes$placeholder = elm$html$Html$Attributes$stringProperty('placeholder');
 var elm$html$Html$Attributes$readonly = elm$html$Html$Attributes$boolProperty('readOnly');
@@ -5172,7 +5361,6 @@ var elm$html$Html$Events$alwaysStop = function (x) {
 var elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
 	return {$: 'MayStopPropagation', a: a};
 };
-var elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
 var elm$html$Html$Events$stopPropagationOn = F2(
 	function (event, decoder) {
 		return A2(
@@ -5267,6 +5455,7 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$th = F2(
 		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Th(
 			{children: children, options: options});
 	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Utilities$Flex$inline = elm$html$Html$Attributes$class('d-inline-flex');
 var author$project$AvitoApp$CellChangeStatus = F2(
 	function (a, b) {
 		return {$: 'CellChangeStatus', a: a, b: b};
@@ -5276,6 +5465,7 @@ var author$project$AvitoApp$CellUpdate = F2(
 	function (a, b) {
 		return {$: 'CellUpdate', a: a, b: b};
 	});
+var elm$html$Html$div = _VirtualDom_node('div');
 var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
 var elm$virtual_dom$VirtualDom$Normal = function (a) {
@@ -5303,13 +5493,32 @@ var author$project$AvitoApp$textCell = F2(
 					_List_Nil,
 					_List_fromArray(
 						[
-							EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$text(
+							A2(
+							elm$html$Html$div,
+							_List_fromArray(
+								[EdutainmentLIVE$elm_bootstrap$Bootstrap$Utilities$Flex$inline]),
 							_List_fromArray(
 								[
-									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small,
-									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value(t),
-									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput(
-									author$project$AvitoApp$CellUpdate(i))
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$text(
+									_List_fromArray(
+										[
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small,
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value(t),
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput(
+											author$project$AvitoApp$CellUpdate(i))
+										])),
+									A2(
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$button,
+									_List_fromArray(
+										[
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$small,
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$onClick(
+											A2(author$project$AvitoApp$CellChangeStatus, i, author$project$AvitoApp$CellNormal))
+										]),
+									_List_fromArray(
+										[
+											elm$html$Html$text('X')
+										]))
 								]))
 						]));
 			},
@@ -5462,7 +5671,6 @@ var elm$core$Array$set = F3(
 			A4(elm$core$Array$setHelp, startShift, index, value, tree),
 			tail));
 	});
-var elm$core$Debug$log = _Debug_log;
 var elm$core$Maybe$withDefault = F2(
 	function (_default, maybe) {
 		if (maybe.$ === 'Just') {
@@ -5484,9 +5692,7 @@ var author$project$AvitoApp$update = F2(
 			return _Utils_update(
 				model,
 				{
-					cells: A4(
-						elm$core$Debug$log,
-						'cells',
+					cells: A2(
 						elm$core$Maybe$withDefault,
 						model.cells,
 						A2(
@@ -5526,7 +5732,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$CDN$stylesheet = A3(
 			elm$html$Html$Attributes$href('https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css')
 		]),
 	_List_Nil);
-var elm$html$Html$div = _VirtualDom_node('div');
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Grid$container = F2(
 	function (attributes, children) {
 		return A2(
@@ -5543,6 +5748,10 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Bordered = {$: 'Bordered'};
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$bordered = EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Bordered;
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Hover = {$: 'Hover'};
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$hover = EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Hover;
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Responsive = function (a) {
+	return {$: 'Responsive', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$responsive = EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Responsive(elm$core$Maybe$Nothing);
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$THead = function (a) {
 	return {$: 'THead', a: a};
 };
@@ -5591,20 +5800,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$KeyedRow = function (a) {
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$InversedCell = function (a) {
 	return {$: 'InversedCell', a: a};
 };
-var elm$core$List$map = F2(
-	function (f, xs) {
-		return A3(
-			elm$core$List$foldr,
-			F2(
-				function (x, acc) {
-					return A2(
-						elm$core$List$cons,
-						f(x),
-						acc);
-				}),
-			_List_Nil,
-			xs);
-	});
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$mapInversedCell = function (cell) {
 	var inverseOptions = function (options) {
 		return A2(
@@ -5749,17 +5944,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$maybeMapInversedTHead = F2(
 				{
 					rows: A2(elm$core$List$map, EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$mapInversedRow, thead_.rows)
 				}) : thead_);
-	});
-var elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2(elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
 	});
 var elm$core$List$head = function (list) {
 	if (list.b) {
@@ -6151,7 +6335,7 @@ var author$project$AvitoApp$avitoTable = function (model) {
 	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$table(
 		{
 			options: _List_fromArray(
-				[EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$bordered, EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$hover]),
+				[EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$bordered, EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$hover, EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$responsive]),
 			tbody: A2(
 				EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$tbody,
 				_List_Nil,
