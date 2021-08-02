@@ -3917,6 +3917,43 @@ function _VirtualDom_dekey(keyedNode)
 
 
 
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
+};
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
+
+
+
 
 // ELEMENT
 
@@ -4357,8 +4394,6 @@ function _Browser_load(url)
 }
 var author$project$AvitoApp$CellNormal = {$: 'CellNormal'};
 var author$project$AvitoApp$initCell = {status: author$project$AvitoApp$CellNormal, value: ''};
-var author$project$AvitoApp$CellEditable = {$: 'CellEditable'};
-var author$project$AvitoApp$initCell2 = {status: author$project$AvitoApp$CellEditable, value: ''};
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$OnInput = function (a) {
 	return {$: 'OnInput', a: a};
 };
@@ -5210,14 +5245,37 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Value = function (a) {
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value = function (value_) {
 	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$Value(value_);
 };
-var author$project$AvitoApp$CellFocus = function (a) {
-	return {$: 'CellFocus', a: a};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$CellAttr = function (a) {
+	return {$: 'CellAttr', a: a};
 };
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$cellAttr = function (attr_) {
+	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$CellAttr(attr_);
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Td = function (a) {
+	return {$: 'Td', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$td = F2(
+	function (options, children) {
+		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Td(
+			{children: children, options: options});
+	});
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Th = function (a) {
+	return {$: 'Th', a: a};
+};
+var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$th = F2(
+	function (options, children) {
+		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Th(
+			{children: children, options: options});
+	});
+var author$project$AvitoApp$CellChangeStatus = F2(
+	function (a, b) {
+		return {$: 'CellChangeStatus', a: a, b: b};
+	});
+var author$project$AvitoApp$CellEditable = {$: 'CellEditable'};
 var author$project$AvitoApp$CellUpdate = F2(
 	function (a, b) {
 		return {$: 'CellUpdate', a: a, b: b};
 	});
-var elm$html$Html$span = _VirtualDom_node('span');
 var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
 var elm$virtual_dom$VirtualDom$Normal = function (a) {
@@ -5240,47 +5298,180 @@ var author$project$AvitoApp$textCell = F2(
 	function (n, i) {
 		return {
 			edit: function (t) {
-				return _List_fromArray(
-					[
-						EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$text(
-						_List_fromArray(
-							[
-								EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small,
-								EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value(t),
-								EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput(
-								author$project$AvitoApp$CellUpdate(i))
-							]))
-					]);
+				return A2(
+					EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$td,
+					_List_Nil,
+					_List_fromArray(
+						[
+							EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$text(
+							_List_fromArray(
+								[
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small,
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value(t),
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput(
+									author$project$AvitoApp$CellUpdate(i))
+								]))
+						]));
 			},
 			name: n,
 			normal: function (t) {
-				return _List_fromArray(
-					[
-						A2(
-						elm$html$Html$span,
-						_List_fromArray(
-							[
-								elm$html$Html$Events$onClick(
-								author$project$AvitoApp$CellFocus(i))
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text(t)
-							]))
-					]);
+				return A2(
+					EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$th,
+					_List_fromArray(
+						[
+							EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$cellAttr(
+							elm$html$Html$Events$onClick(
+								A2(author$project$AvitoApp$CellChangeStatus, i, author$project$AvitoApp$CellEditable)))
+						]),
+					_List_fromArray(
+						[
+							elm$html$Html$text(t)
+						]));
 			}
 		};
 	});
-var author$project$AvitoApp$initModel = {
-	cells: _List_fromArray(
-		[author$project$AvitoApp$initCell, author$project$AvitoApp$initCell2, author$project$AvitoApp$initCell]),
-	cellsInfo: _List_fromArray(
-		[
-			A2(author$project$AvitoApp$textCell, 'col1', 0),
-			A2(author$project$AvitoApp$textCell, 'col2', 1),
-			A2(author$project$AvitoApp$textCell, 'col3', 2)
-		])
+var elm$core$Array$fromListHelp = F3(
+	function (list, nodeList, nodeListSize) {
+		fromListHelp:
+		while (true) {
+			var _n0 = A2(elm$core$Elm$JsArray$initializeFromList, elm$core$Array$branchFactor, list);
+			var jsArray = _n0.a;
+			var remainingItems = _n0.b;
+			if (_Utils_cmp(
+				elm$core$Elm$JsArray$length(jsArray),
+				elm$core$Array$branchFactor) < 0) {
+				return A2(
+					elm$core$Array$builderToArray,
+					true,
+					{nodeList: nodeList, nodeListSize: nodeListSize, tail: jsArray});
+			} else {
+				var $temp$list = remainingItems,
+					$temp$nodeList = A2(
+					elm$core$List$cons,
+					elm$core$Array$Leaf(jsArray),
+					nodeList),
+					$temp$nodeListSize = nodeListSize + 1;
+				list = $temp$list;
+				nodeList = $temp$nodeList;
+				nodeListSize = $temp$nodeListSize;
+				continue fromListHelp;
+			}
+		}
+	});
+var elm$core$Array$fromList = function (list) {
+	if (!list.b) {
+		return elm$core$Array$empty;
+	} else {
+		return A3(elm$core$Array$fromListHelp, list, _List_Nil, 0);
+	}
 };
+var author$project$AvitoApp$initModel = {
+	cells: elm$core$Array$fromList(
+		_List_fromArray(
+			[author$project$AvitoApp$initCell, author$project$AvitoApp$initCell, author$project$AvitoApp$initCell])),
+	cellsInfo: elm$core$Array$fromList(
+		_List_fromArray(
+			[
+				A2(author$project$AvitoApp$textCell, 'col1', 0),
+				A2(author$project$AvitoApp$textCell, 'col2', 1),
+				A2(author$project$AvitoApp$textCell, 'col3', 2)
+			]))
+};
+var elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
+var elm$core$Array$bitMask = 4294967295 >>> (32 - elm$core$Array$shiftStep);
+var elm$core$Bitwise$and = _Bitwise_and;
+var elm$core$Elm$JsArray$unsafeGet = _JsArray_unsafeGet;
+var elm$core$Array$getHelp = F3(
+	function (shift, index, tree) {
+		getHelp:
+		while (true) {
+			var pos = elm$core$Array$bitMask & (index >>> shift);
+			var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+			if (_n0.$ === 'SubTree') {
+				var subTree = _n0.a;
+				var $temp$shift = shift - elm$core$Array$shiftStep,
+					$temp$index = index,
+					$temp$tree = subTree;
+				shift = $temp$shift;
+				index = $temp$index;
+				tree = $temp$tree;
+				continue getHelp;
+			} else {
+				var values = _n0.a;
+				return A2(elm$core$Elm$JsArray$unsafeGet, elm$core$Array$bitMask & index, values);
+			}
+		}
+	});
+var elm$core$Bitwise$shiftLeftBy = _Bitwise_shiftLeftBy;
+var elm$core$Array$tailIndex = function (len) {
+	return (len >>> 5) << 5;
+};
+var elm$core$Basics$ge = _Utils_ge;
+var elm$core$Array$get = F2(
+	function (index, _n0) {
+		var len = _n0.a;
+		var startShift = _n0.b;
+		var tree = _n0.c;
+		var tail = _n0.d;
+		return ((index < 0) || (_Utils_cmp(index, len) > -1)) ? elm$core$Maybe$Nothing : ((_Utils_cmp(
+			index,
+			elm$core$Array$tailIndex(len)) > -1) ? elm$core$Maybe$Just(
+			A2(elm$core$Elm$JsArray$unsafeGet, elm$core$Array$bitMask & index, tail)) : elm$core$Maybe$Just(
+			A3(elm$core$Array$getHelp, startShift, index, tree)));
+	});
+var elm$core$Elm$JsArray$unsafeSet = _JsArray_unsafeSet;
+var elm$core$Array$setHelp = F4(
+	function (shift, index, value, tree) {
+		var pos = elm$core$Array$bitMask & (index >>> shift);
+		var _n0 = A2(elm$core$Elm$JsArray$unsafeGet, pos, tree);
+		if (_n0.$ === 'SubTree') {
+			var subTree = _n0.a;
+			var newSub = A4(elm$core$Array$setHelp, shift - elm$core$Array$shiftStep, index, value, subTree);
+			return A3(
+				elm$core$Elm$JsArray$unsafeSet,
+				pos,
+				elm$core$Array$SubTree(newSub),
+				tree);
+		} else {
+			var values = _n0.a;
+			var newLeaf = A3(elm$core$Elm$JsArray$unsafeSet, elm$core$Array$bitMask & index, value, values);
+			return A3(
+				elm$core$Elm$JsArray$unsafeSet,
+				pos,
+				elm$core$Array$Leaf(newLeaf),
+				tree);
+		}
+	});
+var elm$core$Array$set = F3(
+	function (index, value, array) {
+		var len = array.a;
+		var startShift = array.b;
+		var tree = array.c;
+		var tail = array.d;
+		return ((index < 0) || (_Utils_cmp(index, len) > -1)) ? array : ((_Utils_cmp(
+			index,
+			elm$core$Array$tailIndex(len)) > -1) ? A4(
+			elm$core$Array$Array_elm_builtin,
+			len,
+			startShift,
+			tree,
+			A3(elm$core$Elm$JsArray$unsafeSet, elm$core$Array$bitMask & index, value, tail)) : A4(
+			elm$core$Array$Array_elm_builtin,
+			len,
+			startShift,
+			A4(elm$core$Array$setHelp, startShift, index, value, tree),
+			tail));
+	});
+var elm$core$Debug$log = _Debug_log;
+var elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
 var author$project$AvitoApp$update = F2(
 	function (action, model) {
 		if (action.$ === 'CellUpdate') {
@@ -5289,7 +5480,29 @@ var author$project$AvitoApp$update = F2(
 			return model;
 		} else {
 			var i = action.a;
-			return model;
+			var s = action.b;
+			return _Utils_update(
+				model,
+				{
+					cells: A4(
+						elm$core$Debug$log,
+						'cells',
+						elm$core$Maybe$withDefault,
+						model.cells,
+						A2(
+							elm$core$Maybe$andThen,
+							function (c) {
+								return elm$core$Maybe$Just(
+									A3(
+										elm$core$Array$set,
+										i,
+										_Utils_update(
+											c,
+											{status: s}),
+										model.cells));
+							},
+							A2(elm$core$Array$get, i, model.cells)))
+				});
 		}
 	});
 var elm$virtual_dom$VirtualDom$node = function (tag) {
@@ -5377,12 +5590,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$KeyedRow = function (a) {
 };
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$InversedCell = function (a) {
 	return {$: 'InversedCell', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Td = function (a) {
-	return {$: 'Td', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Th = function (a) {
-	return {$: 'Th', a: a};
 };
 var elm$core$List$map = F2(
 	function (f, xs) {
@@ -5563,15 +5770,6 @@ var elm$core$List$head = function (list) {
 		return elm$core$Maybe$Nothing;
 	}
 };
-var elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$maybeWrapResponsive = F2(
 	function (options, table_) {
 		var responsiveClass = elm$html$Html$Attributes$class(
@@ -5605,12 +5803,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$maybeWrapResponsive = F2(
 			_List_fromArray(
 				[table_])) : table_;
 	});
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$CellAttr = function (a) {
-	return {$: 'CellAttr', a: a};
-};
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$cellAttr = function (attr_) {
-	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$CellAttr(attr_);
-};
 var elm$html$Html$Attributes$scope = elm$html$Html$Attributes$stringProperty('scope');
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$addScopeIfTh = function (cell) {
 	if (cell.$ === 'Th') {
@@ -5926,16 +6118,6 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$tbody = F2(
 		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$TBody(
 			{attributes: attributes, rows: rows});
 	});
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$td = F2(
-	function (options, children) {
-		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Td(
-			{children: children, options: options});
-	});
-var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$th = F2(
-	function (options, children) {
-		return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$Th(
-			{children: children, options: options});
-	});
 var elm$core$Tuple$pair = F2(
 	function (a, b) {
 		return _Utils_Tuple2(a, b);
@@ -5951,6 +6133,12 @@ var author$project$AvitoApp$avitoTable = function (model) {
 			return info.edit(cell.value);
 		}
 	};
+	var cellsL = elm$core$Array$toList(model.cells);
+	var cellsInfoL = elm$core$Array$toList(model.cellsInfo);
+	var cellsP = A2(
+		elm$core$List$map,
+		viewCell,
+		A3(elm$core$List$map2, elm$core$Tuple$pair, cellsInfoL, cellsL));
 	var headP = A2(
 		elm$core$List$map,
 		function (i) {
@@ -5959,11 +6147,7 @@ var author$project$AvitoApp$avitoTable = function (model) {
 					elm$html$Html$text(i.name)
 				]);
 		},
-		model.cellsInfo);
-	var cellsP = A2(
-		elm$core$List$map,
-		viewCell,
-		A3(elm$core$List$map2, elm$core$Tuple$pair, model.cellsInfo, model.cells));
+		cellsInfoL);
 	return EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$table(
 		{
 			options: _List_fromArray(
@@ -5973,13 +6157,7 @@ var author$project$AvitoApp$avitoTable = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						A2(
-						EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$tr,
-						_List_Nil,
-						A2(
-							elm$core$List$map,
-							EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$td(_List_Nil),
-							cellsP))
+						A2(EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$tr, _List_Nil, cellsP)
 					])),
 			thead: EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$simpleThead(
 				A2(

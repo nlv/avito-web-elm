@@ -1,6 +1,7 @@
 module AvitoApp exposing (main)
 
 import List as List
+import Array as Array
 import Tuple as Tuple
 
 import Browser
@@ -18,12 +19,12 @@ import Maybe exposing (andThen)
 
 type CellMsg = 
       CellUpdate Int String
-    | CellFocus Int
+    | CellChangeStatus Int CellStatus
 
-type alias CellInfo = { name : String, normal : String -> List (Html.Html CellMsg), edit : String -> List (Html.Html CellMsg) }
+type alias CellInfo = { name : String, normal : String -> Table.Cell CellMsg, edit : String -> Table.Cell CellMsg }
 
 textCell : String -> Int -> CellInfo  
-textCell n i = { name = n, normal = \t -> [span [ onClick (CellFocus i)] [text t]], edit = \t -> [Input.text  [Input.small, Input.value t, Input.onInput (CellUpdate i)]]  }
+textCell n i = { name = n, normal = \t -> Table.th [Table.cellAttr (onClick (CellChangeStatus i CellEditable))] [text t], edit = \t -> Table.td [] [Input.text  [Input.small, Input.value t, Input.onInput (CellUpdate i)]]  }
 
 type CellStatus = CellNormal | CellEditable
 
@@ -32,20 +33,17 @@ type alias Cell = { value : String, status : CellStatus}
 {- ----- -}
 
 type alias Model = {
-      cellsInfo : List CellInfo
-    , cells : List Cell
+      cellsInfo : Array.Array CellInfo
+    , cells : Array.Array Cell
     }
 
 initCell : Cell
 initCell = { value = "", status = CellNormal }
 
-initCell2 : Cell
-initCell2 = { value = "", status = CellEditable }
-
 initModel : Model
 initModel = {
-      cellsInfo = [textCell "col1" 0, textCell "col2" 1, textCell "col3" 2]
-    , cells = [initCell, initCell2, initCell]
+      cellsInfo = Array.fromList [textCell "col1" 0, textCell "col2" 1, textCell "col3" 2]
+    , cells = Array.fromList [initCell, initCell, initCell]
     }
 
 -- type Message = MCellMessage CellMessage
@@ -54,8 +52,8 @@ update : CellMsg -> Model -> Model
 update action model =
   case action of
     CellUpdate i str -> model
-    CellFocus i -> model
-    -- Array.get i model.cells |> andThen
+    CellChangeStatus i s -> { model | cells = Debug.log "cells" Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = s} model.cells))) }
+
 
 
 main : Program () Model CellMsg
@@ -71,17 +69,18 @@ view model =
 avitoTable : Model -> Html.Html CellMsg
 avitoTable model = 
     let 
-        headP = List.map (\i -> [text i.name]) model.cellsInfo
-        cellsP = List.map viewCell (List.map2 Tuple.pair model.cellsInfo model.cells)
+        cellsL = Array.toList  model.cells
+        cellsInfoL = Array.toList model.cellsInfo
+        headP = List.map (\i -> [text i.name]) cellsInfoL
+        cellsP = List.map viewCell (List.map2 Tuple.pair cellsInfoL cellsL)
         viewCell (info, cell) = case cell.status of
                                  CellNormal -> info.normal cell.value 
                                  CellEditable -> info.edit cell.value
     in
     Table.table {
       options = [ Table.bordered, Table.hover ]
-    -- , thead = Table.simpleThead (List.map (\h -> Table.th [] h) headP) 
     , thead = Table.simpleThead (List.map (Table.th []) headP) 
     , tbody = Table.tbody [] [
-            Table.tr [] (List.map (Table.td []) cellsP)
+            Table.tr [] cellsP
         ]
     }
