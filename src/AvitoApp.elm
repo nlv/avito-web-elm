@@ -21,24 +21,27 @@ import Maybe exposing (andThen)
 {- ------ -}
 
 type CellMsg = 
-      CellUpdate Int String
-    | CellChangeStatus Int CellStatus
+      CellInput Int String
+    | CellSetEditable Int
+    | CellCancelEditable Int
+    | CellSetNormal Int
 
 type alias CellInfo = { name : String, normal : String -> Table.Cell CellMsg, edit : String -> Table.Cell CellMsg }
 
 textCell : String -> Int -> CellInfo  
 textCell n i = { 
     name = n
-  , normal = \t -> Table.th [Table.cellAttr (onClick (CellChangeStatus i CellEditable))] [text t]
+  , normal = \t -> Table.th [Table.cellAttr (onClick (CellSetEditable i))] [text t]
   , edit = \t -> Table.td [] [
       div [Flex.inline] [
-        Input.text  [Input.small, Input.value t, Input.onInput (CellUpdate i)]
-      , Button.button [Button.small, Button.onClick (CellChangeStatus i CellNormal)] [text "X"]
+        Input.text  [Input.small, Input.value t, Input.onInput (CellInput i)]
+      , Button.button [Button.small, Button.onClick (CellSetNormal i)] [text "V"]
+      , Button.button [Button.small, Button.onClick (CellCancelEditable i)] [text "X"]
       ]
     ]  
   }
 
-type CellStatus = CellNormal | CellEditable
+type CellStatus = CellNormal | CellEditable String
 
 type alias Cell = { value : String, status : CellStatus}
 
@@ -63,10 +66,20 @@ initModel = {
 update : CellMsg -> Model -> Model
 update action model =
   case action of
-    CellUpdate i str -> model
-    CellChangeStatus i s -> { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = s} model.cells))) }
+    CellInput i str -> { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
+    CellSetEditable i -> 
+      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
+    CellCancelEditable i -> 
+      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
+    CellSetNormal i -> 
+      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> 
+        Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of CellNormal -> c.value 
+                                                                             CellEditable str -> str, status = CellNormal} model.cells))) }      
 
 
+    -- | CellSetEditable Int
+    -- | CellCancelEditable Int
+    -- | CellSetNormal Int
 
 main : Program () Model CellMsg
 main = Browser.sandbox { init = initModel, update = update, view = view }
@@ -87,7 +100,7 @@ avitoTable model =
         cellsP = List.map viewCell (List.map2 Tuple.pair cellsInfoL cellsL)
         viewCell (info, cell) = case cell.status of
                                  CellNormal -> info.normal cell.value 
-                                 CellEditable -> info.edit cell.value
+                                 CellEditable v -> info.edit v
     in
     Table.table {
       options = [ Table.bordered, Table.hover, Table.responsive ]

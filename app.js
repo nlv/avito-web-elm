@@ -5456,15 +5456,19 @@ var EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$th = F2(
 			{children: children, options: options});
 	});
 var EdutainmentLIVE$elm_bootstrap$Bootstrap$Utilities$Flex$inline = elm$html$Html$Attributes$class('d-inline-flex');
-var author$project$AvitoApp$CellChangeStatus = F2(
+var author$project$AvitoApp$CellCancelEditable = function (a) {
+	return {$: 'CellCancelEditable', a: a};
+};
+var author$project$AvitoApp$CellInput = F2(
 	function (a, b) {
-		return {$: 'CellChangeStatus', a: a, b: b};
+		return {$: 'CellInput', a: a, b: b};
 	});
-var author$project$AvitoApp$CellEditable = {$: 'CellEditable'};
-var author$project$AvitoApp$CellUpdate = F2(
-	function (a, b) {
-		return {$: 'CellUpdate', a: a, b: b};
-	});
+var author$project$AvitoApp$CellSetEditable = function (a) {
+	return {$: 'CellSetEditable', a: a};
+};
+var author$project$AvitoApp$CellSetNormal = function (a) {
+	return {$: 'CellSetNormal', a: a};
+};
 var elm$html$Html$div = _VirtualDom_node('div');
 var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
@@ -5505,7 +5509,7 @@ var author$project$AvitoApp$textCell = F2(
 											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$small,
 											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$value(t),
 											EdutainmentLIVE$elm_bootstrap$Bootstrap$Form$Input$onInput(
-											author$project$AvitoApp$CellUpdate(i))
+											author$project$AvitoApp$CellInput(i))
 										])),
 									A2(
 									EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$button,
@@ -5513,7 +5517,19 @@ var author$project$AvitoApp$textCell = F2(
 										[
 											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$small,
 											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$onClick(
-											A2(author$project$AvitoApp$CellChangeStatus, i, author$project$AvitoApp$CellNormal))
+											author$project$AvitoApp$CellSetNormal(i))
+										]),
+									_List_fromArray(
+										[
+											elm$html$Html$text('V')
+										])),
+									A2(
+									EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$button,
+									_List_fromArray(
+										[
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$small,
+											EdutainmentLIVE$elm_bootstrap$Bootstrap$Button$onClick(
+											author$project$AvitoApp$CellCancelEditable(i))
 										]),
 									_List_fromArray(
 										[
@@ -5530,7 +5546,7 @@ var author$project$AvitoApp$textCell = F2(
 						[
 							EdutainmentLIVE$elm_bootstrap$Bootstrap$Table$cellAttr(
 							elm$html$Html$Events$onClick(
-								A2(author$project$AvitoApp$CellChangeStatus, i, author$project$AvitoApp$CellEditable)))
+								author$project$AvitoApp$CellSetEditable(i)))
 						]),
 					_List_fromArray(
 						[
@@ -5585,6 +5601,9 @@ var author$project$AvitoApp$initModel = {
 				A2(author$project$AvitoApp$textCell, 'col2', 1),
 				A2(author$project$AvitoApp$textCell, 'col3', 2)
 			]))
+};
+var author$project$AvitoApp$CellEditable = function (a) {
+	return {$: 'CellEditable', a: a};
 };
 var elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
 var elm$core$Array$bitMask = 4294967295 >>> (32 - elm$core$Array$shiftStep);
@@ -5682,33 +5701,111 @@ var elm$core$Maybe$withDefault = F2(
 	});
 var author$project$AvitoApp$update = F2(
 	function (action, model) {
-		if (action.$ === 'CellUpdate') {
-			var i = action.a;
-			var str = action.b;
-			return model;
-		} else {
-			var i = action.a;
-			var s = action.b;
-			return _Utils_update(
-				model,
-				{
-					cells: A2(
-						elm$core$Maybe$withDefault,
-						model.cells,
-						A2(
-							elm$core$Maybe$andThen,
-							function (c) {
-								return elm$core$Maybe$Just(
-									A3(
-										elm$core$Array$set,
-										i,
-										_Utils_update(
-											c,
-											{status: s}),
-										model.cells));
-							},
-							A2(elm$core$Array$get, i, model.cells)))
-				});
+		switch (action.$) {
+			case 'CellInput':
+				var i = action.a;
+				var str = action.b;
+				return _Utils_update(
+					model,
+					{
+						cells: A2(
+							elm$core$Maybe$withDefault,
+							model.cells,
+							A2(
+								elm$core$Maybe$andThen,
+								function (c) {
+									return elm$core$Maybe$Just(
+										A3(
+											elm$core$Array$set,
+											i,
+											_Utils_update(
+												c,
+												{
+													status: author$project$AvitoApp$CellEditable(str)
+												}),
+											model.cells));
+								},
+								A2(elm$core$Array$get, i, model.cells)))
+					});
+			case 'CellSetEditable':
+				var i = action.a;
+				return _Utils_update(
+					model,
+					{
+						cells: A2(
+							elm$core$Maybe$withDefault,
+							model.cells,
+							A2(
+								elm$core$Maybe$andThen,
+								function (c) {
+									return elm$core$Maybe$Just(
+										A3(
+											elm$core$Array$set,
+											i,
+											_Utils_update(
+												c,
+												{
+													status: author$project$AvitoApp$CellEditable(c.value)
+												}),
+											model.cells));
+								},
+								A2(elm$core$Array$get, i, model.cells)))
+					});
+			case 'CellCancelEditable':
+				var i = action.a;
+				return _Utils_update(
+					model,
+					{
+						cells: A2(
+							elm$core$Maybe$withDefault,
+							model.cells,
+							A2(
+								elm$core$Maybe$andThen,
+								function (c) {
+									return elm$core$Maybe$Just(
+										A3(
+											elm$core$Array$set,
+											i,
+											_Utils_update(
+												c,
+												{status: author$project$AvitoApp$CellNormal}),
+											model.cells));
+								},
+								A2(elm$core$Array$get, i, model.cells)))
+					});
+			default:
+				var i = action.a;
+				return _Utils_update(
+					model,
+					{
+						cells: A2(
+							elm$core$Maybe$withDefault,
+							model.cells,
+							A2(
+								elm$core$Maybe$andThen,
+								function (c) {
+									return elm$core$Maybe$Just(
+										A3(
+											elm$core$Array$set,
+											i,
+											_Utils_update(
+												c,
+												{
+													status: author$project$AvitoApp$CellNormal,
+													value: function () {
+														var _n1 = c.status;
+														if (_n1.$ === 'CellNormal') {
+															return c.value;
+														} else {
+															var str = _n1.a;
+															return str;
+														}
+													}()
+												}),
+											model.cells));
+								},
+								A2(elm$core$Array$get, i, model.cells)))
+					});
 		}
 	});
 var elm$virtual_dom$VirtualDom$node = function (tag) {
@@ -6314,7 +6411,8 @@ var author$project$AvitoApp$avitoTable = function (model) {
 		if (_n0.$ === 'CellNormal') {
 			return info.normal(cell.value);
 		} else {
-			return info.edit(cell.value);
+			var v = _n0.a;
+			return info.edit(v);
 		}
 	};
 	var cellsL = elm$core$Array$toList(model.cells);
