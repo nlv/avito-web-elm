@@ -80,10 +80,8 @@ update action model =
       , Cmd.none
       )
     CellSetEditable i -> (
-          { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
-      , let attemptP : CellInfo ->Maybe (Cmd CellMsg) 
-            attemptP c = Just (Task.attempt FocusResult (focus c.focusId)) in
-            Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen attemptP)
+        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
+      , Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus c.focusId)))))
       )      
     CellCancelEditable i -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
