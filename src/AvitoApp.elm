@@ -5,18 +5,19 @@ import Array as Array
 import Tuple as Tuple
 
 import Browser
-import Html exposing (text, div, span)
+import Task
+import Html exposing (text, div)
 import Html.Events exposing (onClick)
+import Html.Attributes exposing (id)
+import Browser.Dom exposing (focus, Error)
 
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
-import Bootstrap.Utilities.Display as Display
 import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Table as Table
 import Bootstrap.Button as Button
 import Bootstrap.Form.Input as Input
 
-import Maybe exposing (andThen)
 
 {- ------ -}
 
@@ -25,6 +26,9 @@ type CellMsg =
     | CellSetEditable Int
     | CellCancelEditable Int
     | CellSetNormal Int
+
+    | FocusOn String
+    | FocusResult (Result Error ())
 
 type alias CellInfo = { name : String, normal : String -> Table.Cell CellMsg, edit : String -> Table.Cell CellMsg }
 
@@ -63,26 +67,37 @@ initModel = {
 
 -- type Message = MCellMessage CellMessage
 
-update : CellMsg -> Model -> Model
+update : CellMsg -> Model -> (Model, Cmd CellMsg)
 update action model =
   case action of
-    CellInput i str -> { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
-    CellSetEditable i -> 
-      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
-    CellCancelEditable i -> 
-      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
-    CellSetNormal i -> 
-      { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> 
-        Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of CellNormal -> c.value 
-                                                                             CellEditable str -> str, status = CellNormal} model.cells))) }      
+    CellInput i str -> (
+        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
+      , Cmd.none
+      )
+    CellSetEditable i -> (
+          { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
+      , Cmd.none
+      )      
+    CellCancelEditable i -> (
+        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
+      , Cmd.none
+      )            
+    CellSetNormal i -> (
+        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> 
+          Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of 
+                                                                CellNormal -> c.value 
+                                                                CellEditable str -> str, status = CellNormal} model.cells))) }      
+        , Cmd.none
+        )                                                                             
 
-
-    -- | CellSetEditable Int
-    -- | CellCancelEditable Int
-    -- | CellSetNormal Int
+    FocusOn id -> (model, Task.attempt FocusResult (focus id) )
+    FocusResult result ->
+            case result of
+                Err _ -> (model, Cmd.none)
+                Ok _ -> (model, Cmd.none)
 
 main : Program () Model CellMsg
-main = Browser.sandbox { init = initModel, update = update, view = view }
+main =  Browser.element { init = \_ -> (initModel, Cmd.none), update = update, view = view, subscriptions = \_ -> Sub.none }
 
 view : Model -> Html.Html CellMsg
 view model = 
