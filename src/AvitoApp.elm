@@ -27,22 +27,27 @@ type CellMsg =
     | CellCancelEditable Int
     | CellSetNormal Int
 
-    | FocusOn String
     | FocusResult (Result Error ())
 
-type alias CellInfo = { name : String, normal : String -> Table.Cell CellMsg, edit : String -> Table.Cell CellMsg }
+type alias CellInfo = { 
+    name : String
+  , normal : String -> Table.Cell CellMsg
+  , edit : String -> Table.Cell CellMsg 
+  , focusId : String
+  }
 
 textCell : String -> Int -> CellInfo  
-textCell n i = { 
-    name = n
-  , normal = \t -> Table.th [Table.cellAttr (onClick (CellSetEditable i))] [text t]
+textCell n i = let focusId = "col-editable-input-" ++ (String.fromInt i) in 
+  { name = n
+  , normal = \t -> Table.td [Table.cellAttr (onClick (CellSetEditable i))] [text t]
   , edit = \t -> Table.td [] [
       div [Flex.inline] [
-        Input.text  [Input.small, Input.value t, Input.onInput (CellInput i)]
+        Input.text [Input.attrs [id focusId], Input.small, Input.value t, Input.onInput (CellInput i)]
       , Button.button [Button.small, Button.onClick (CellSetNormal i)] [text "V"]
       , Button.button [Button.small, Button.onClick (CellCancelEditable i)] [text "X"]
       ]
     ]  
+  , focusId = focusId
   }
 
 type CellStatus = CellNormal | CellEditable String
@@ -76,7 +81,9 @@ update action model =
       )
     CellSetEditable i -> (
           { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
-      , Cmd.none
+      , let attemptP : CellInfo ->Maybe (Cmd CellMsg) 
+            attemptP c = Just (Task.attempt FocusResult (focus c.focusId)) in
+            Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen attemptP)
       )      
     CellCancelEditable i -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
@@ -90,7 +97,6 @@ update action model =
         , Cmd.none
         )                                                                             
 
-    FocusOn id -> (model, Task.attempt FocusResult (focus id) )
     FocusResult result ->
             case result of
                 Err _ -> (model, Cmd.none)
