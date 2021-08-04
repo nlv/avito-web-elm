@@ -1,130 +1,45 @@
 module AvitoApp exposing (main)
 
-import List as List
 import Array as Array
-import Tuple as Tuple
 
+import Platform.Cmd as Cmd
+import Html
 import Browser
-import Task
-import Html exposing (text, div)
-import Html.Events exposing (onClick)
-import Html.Attributes exposing (id)
-import Browser.Dom exposing (focus, Error)
 
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
-import Bootstrap.Utilities.Flex as Flex
-import Bootstrap.Table as Table
-import Bootstrap.Button as Button
-import Bootstrap.Form.Input as Input
 
+import AvitoTable as Table
 
-{- ------ -}
-
-type CellMsg = 
-      CellInput Int String
-    | CellSetEditable Int
-    | CellCancelEditable Int
-    | CellSetNormal Int
-
-    | FocusResult (Result Error ())
-
-type alias CellInfo = { 
-    name : String
-  , normal : String -> Table.Cell CellMsg
-  , edit : String -> Table.Cell CellMsg 
-  , focusId : String
-  }
-
-textCell : String -> Int -> CellInfo  
-textCell n i = let focusId = "col-editable-input-" ++ (String.fromInt i) in 
-  { name = n
-  , normal = \t -> Table.td [Table.cellAttr (onClick (CellSetEditable i))] [text t]
-  , edit = \t -> Table.td [] [
-      div [Flex.inline] [
-        Input.text [Input.attrs [id focusId], Input.small, Input.value t, Input.onInput (CellInput i)]
-      , Button.button [Button.small, Button.onClick (CellSetNormal i)] [text "V"]
-      , Button.button [Button.small, Button.onClick (CellCancelEditable i)] [text "X"]
-      ]
-    ]  
-  , focusId = focusId
-  }
-
-type CellStatus = CellNormal | CellEditable String
-
-type alias Cell = { value : String, status : CellStatus}
-
-{- ----- -}
+type Msg = AvitoTable Table.CellMsg
 
 type alias Model = {
-      cellsInfo : Array.Array CellInfo
-    , cells : Array.Array Cell
-    }
+  avitoTable : Table.Model
+  }
 
-initCell : Cell
-initCell = { value = "", status = CellNormal }
+initCell : Table.Cell
+initCell = { value = "", status = Table.CellNormal }
 
 initModel : Model
 initModel = {
-      cellsInfo = Array.fromList [textCell "col1" 0, textCell "col2" 1, textCell "col3" 2]
+  avitoTable = {
+      cellsInfo = Array.fromList [Table.textCell "col1" 0, Table.textCell "col2" 1, Table.textCell "col3" 2]
     , cells = Array.fromList [initCell, initCell, initCell]
     }
+  }
 
--- type Message = MCellMessage CellMessage
-
-update : CellMsg -> Model -> (Model, Cmd CellMsg)
+update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
-    CellInput i str -> (
-        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
-      , Cmd.none
-      )
-    CellSetEditable i -> (
-        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
-      , Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus c.focusId)))))
-      )      
-    CellCancelEditable i -> (
-        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
-      , Cmd.none
-      )            
-    CellSetNormal i -> (
-        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> 
-          Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of 
-                                                                CellNormal -> c.value 
-                                                                CellEditable str -> str, status = CellNormal} model.cells))) }      
-        , Cmd.none
-        )                                                                             
+    AvitoTable msg -> let (t, c) = Table.update msg model.avitoTable in ( {model | avitoTable = t}, Cmd.map AvitoTable c)
 
-    FocusResult result ->
-            case result of
-                Err _ -> (model, Cmd.none)
-                Ok _ -> (model, Cmd.none)
-
-main : Program () Model CellMsg
+main : Program () Model Msg
 main =  Browser.element { init = \_ -> (initModel, Cmd.none), update = update, view = view, subscriptions = \_ -> Sub.none }
 
-view : Model -> Html.Html CellMsg
+view : Model -> Html.Html Msg
 view model = 
     Grid.container []
         [ CDN.stylesheet
-        , avitoTable model
-        ]
+        , Table.view model.avitoTable
+        ] |> Html.map AvitoTable 
  
-avitoTable : Model -> Html.Html CellMsg
-avitoTable model = 
-    let 
-        cellsL = Array.toList  model.cells
-        cellsInfoL = Array.toList model.cellsInfo
-        headP = List.map (\i -> [text i.name]) cellsInfoL
-        cellsP = List.map viewCell (List.map2 Tuple.pair cellsInfoL cellsL)
-        viewCell (info, cell) = case cell.status of
-                                 CellNormal -> info.normal cell.value 
-                                 CellEditable v -> info.edit v
-    in
-    Table.table {
-      options = [ Table.bordered, Table.hover, Table.responsive ]
-    , thead = Table.simpleThead (List.map (Table.th []) headP) 
-    , tbody = Table.tbody [] [
-            Table.tr [] cellsP
-        ]
-    }
