@@ -1,4 +1,4 @@
-module AvitoTable exposing (CellMsg(..), CellInfo, textCell, CellStatus(..), Cell, Model, update, view)
+module AvitoTable exposing (Msg(..), CellInfo, textCell, CellStatus(..), Cell, Model, update, view)
 
 import List as List
 import Array as Array
@@ -18,8 +18,10 @@ import Bootstrap.Form.Input as Input
 
 {- ------ -}
 
-type CellMsg = 
-      CellInput Int String
+type Msg = 
+      SetData (List String)
+
+    | CellInput Int String
     | CellSetEditable Int
     | CellCancelEditable Int
     | CellSetNormal Int
@@ -28,8 +30,8 @@ type CellMsg =
 
 type alias CellInfo = { 
     name : String
-  , normal : String -> Table.Cell CellMsg
-  , edit : String -> Table.Cell CellMsg 
+  , normal : String -> Table.Cell Msg
+  , edit : String -> Table.Cell Msg 
   , focusId : String
   }
 
@@ -58,9 +60,11 @@ type alias Model = {
     , cells : Array.Array Cell
     }
 
-update : CellMsg -> Model -> (Model, Cmd CellMsg)
+update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
+    SetData xs -> ({ model | cells = List.map (\x -> {value = x, status = CellNormal}) xs |> Array.fromList}, Cmd.none)
+
     CellInput i str -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
       , Cmd.none
@@ -86,10 +90,10 @@ update action model =
                 Err _ -> (model, Cmd.none)
                 Ok _ -> (model, Cmd.none)
 
-view : Model -> Html.Html CellMsg
+view : Model -> Html.Html Msg
 view model = avitoTable model
  
-avitoTable : Model -> Html.Html CellMsg
+avitoTable : Model -> Html.Html Msg
 avitoTable model = 
     let 
         cellsL = Array.toList  model.cells
