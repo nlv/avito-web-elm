@@ -28,14 +28,14 @@ type alias FirstRow = {
 type alias Model = {
     initialLoad : LoadingStatus 
   , avitoTable : Table.Model
-  , data : List String
+  , data : FirstRow
   }
 
 initModel : Model
 initModel = {
     initialLoad = Loading
   , avitoTable = Table.initModel ["col1", "col2", "col3"] ["", "", ""]
-  , data = ["", "", ""]
+  , data = {col1 = "", col2 = "", col3 = ""}
   }
 
 getData : Cmd Msg
@@ -44,12 +44,29 @@ getData = Http.get
       , expect = Http.expectJson GotInitialData (D.map3 FirstRow (D.field "_testTableCol1" D.string) (D.field "_testTableCol2" D.string) (D.field "_testTableCol3" D.string))
       }
 
+-- updateData : List String -> Cmd Msg
+-- updateData ds = 
+--       let d = 
+--       Http.post 
+--         { url = "http://localhost:3030/data/test_table/first"
+--         , body = Http.jsonBody (E.dict identity)
+--         , expect = Http.expectJson GotInitialData (D.map3 FirstRow (D.field "_testTableCol1" D.string) (D.field "_testTableCol2" D.string) (D.field "_testTableCol3" D.string))
+--         }
+
+listToFirstRow : FirstRow -> List String -> FirstRow
+listToFirstRow default ds =
+  let da = Array.fromList ds in
+  Maybe.map3 (\c1 c2 c3 -> {col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 da) (Array.get 1 da) (Array.get 2 da) |> Maybe.withDefault default 
+
+firstRowToList : FirstRow -> List String
+firstRowToList row = [row.col1, row.col2, row.col3]
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
     AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable 
                           newData = case i of
-                                  Just ds -> ds
+                                  Just ds -> listToFirstRow model.data ds
                                   Nothing -> model.data
                       in 
                       ( {model | avitoTable = t, data = newData}, Cmd.map AvitoTable cmd)
@@ -57,9 +74,7 @@ update action model =
     GotInitialData result ->
       case result of
         Ok row ->
-          let data = [row.col1, row.col2, row.col3]
-          in
-          ({ model | initialLoad = Success, data = data, avitoTable = Table.setData model.avitoTable data }, Cmd.none)
+          ({ model | initialLoad = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
           ({ model | initialLoad = Failure }, Cmd.none)
@@ -79,7 +94,7 @@ view2 model =
   case model.initialLoad of 
     Success -> Html.div [] [
         Table.view model.avitoTable |> Html.map AvitoTable
-      , mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo)) model.data
+      , firstRowToList model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
       ]
     Loading -> Html.text "Загрузка данных"
     Failure -> Html.text "Ошибка загрузки данных"
