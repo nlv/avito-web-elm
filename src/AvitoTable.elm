@@ -1,4 +1,5 @@
-module AvitoTable exposing (Msg(..), CellInfo, textCell, CellStatus(..), Cell, Model, update, view)
+-- module AvitoTable exposing (Msg), CellInfo, textCell, CellStatus(..), Cell, Model, initModel, update, view)
+module AvitoTable exposing (Msg, Model, update, view, initModel, setData)
 
 import List as List
 import Array as Array
@@ -31,12 +32,12 @@ type Msg =
 type alias CellInfo = { 
     name : String
   , normal : String -> Table.Cell Msg
-  , edit : String -> Table.Cell Msg 
+  , edit : String -> Table.Cell Msg
   , focusId : String
   }
 
-textCell : String -> Int -> CellInfo  
-textCell n i = let focusId = "col-editable-input-" ++ (String.fromInt i) in 
+textCell : Int -> String -> CellInfo
+textCell i n = let focusId = "col-editable-input-" ++ (String.fromInt i) in 
   { name = n
   , normal = \t -> Table.td [Table.cellAttr (onClick (CellSetEditable i))] [text t]
   , edit = \t -> Table.td [] [
@@ -60,35 +61,50 @@ type alias Model = {
     , cells : Array.Array Cell
     }
 
-update : Msg -> Model -> (Model, Cmd Msg)
+initModel : (List String) -> (List String ) -> Model
+initModel hs ds = {
+        cellsInfo = hs |> List.indexedMap textCell |> Array.fromList
+      , cells = ds |> List.map (\i -> {value = i, status = CellNormal}) |> Array.fromList
+      }    
+
+setData : Model -> (List String) -> Model
+setData model ds = {model | cells = ds |> List.map (\i -> {value = i, status = CellNormal}) |> Array.fromList}
+
+update : Msg -> Model -> (Model, Cmd Msg, Maybe (List String))
 update action model =
   case action of
-    SetData xs -> ({ model | cells = List.map (\x -> {value = x, status = CellNormal}) xs |> Array.fromList}, Cmd.none)
+    SetData xs -> ({ model | cells = List.map (\x -> {value = x, status = CellNormal}) xs |> Array.fromList}, Cmd.none, Nothing)
 
     CellInput i str -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable str} model.cells))) }
       , Cmd.none
+      , Nothing
       )
     CellSetEditable i -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellEditable c.value} model.cells))) }
       , Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus c.focusId)))))
+      , Nothing
       )      
     CellCancelEditable i -> (
         { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> Maybe.andThen (\c -> Just (Array.set i {c | status = CellNormal} model.cells))) }
       , Cmd.none
+      , Nothing
       )            
-    CellSetNormal i -> (
-        { model | cells = Maybe.withDefault model.cells (Array.get i model.cells |> 
-          Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of 
-                                                                CellNormal -> c.value 
-                                                                CellEditable str -> str, status = CellNormal} model.cells))) }      
+    CellSetNormal i -> 
+        let newCells = Maybe.withDefault model.cells (Array.get i model.cells |> 
+                    Maybe.andThen (\c -> Just (Array.set i {c | value = case c.status of 
+                                                                          CellNormal -> c.value 
+                                                                          CellEditable str -> str, status = CellNormal} model.cells)))
+        in
+        ( { model | cells = newCells }      
         , Cmd.none
+        , Array.toList newCells |> List.map (.value) |> Just
         )                                                                             
 
     FocusResult result ->
             case result of
-                Err _ -> (model, Cmd.none)
-                Ok _ -> (model, Cmd.none)
+                Err _ -> (model, Cmd.none, Nothing)
+                Ok _ -> (model, Cmd.none, Nothing)
 
 view : Model -> Html.Html Msg
 view model = avitoTable model
