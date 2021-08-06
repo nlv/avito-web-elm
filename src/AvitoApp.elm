@@ -8,16 +8,18 @@ import Http
 import Browser
 
 import Json.Decode as D
+import Json.Encode as E
 
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
 import Bootstrap.Table as BTable
 
 import AvitoTable as Table
+import Dict exposing (Dict)
 
-type Msg = AvitoTable Table.Msg | GotInitialData (Result Http.Error FirstRow)
+type Msg = AvitoTable Table.Msg | GotInitialData (Result Http.Error FirstRow) | DataPosted (Result Http.Error ())
 
-type LoadingStatus = Failure | Loading | Success
+type HttpStatus = Failure | Loading | Success
 
 type alias FirstRow = {
     col1 : String
@@ -26,14 +28,16 @@ type alias FirstRow = {
   }
 
 type alias Model = {
-    initialLoad : LoadingStatus 
+    initialLoadStatus : HttpStatus 
+  , postDataStatus : HttpStatus  
   , avitoTable : Table.Model
   , data : FirstRow
   }
 
 initModel : Model
 initModel = {
-    initialLoad = Loading
+    initialLoadStatus = Loading
+  , postDataStatus = Success  
   , avitoTable = Table.initModel ["col1", "col2", "col3"] ["", "", ""]
   , data = {col1 = "", col2 = "", col3 = ""}
   }
@@ -44,14 +48,13 @@ getData = Http.get
       , expect = Http.expectJson GotInitialData (D.map3 FirstRow (D.field "_testTableCol1" D.string) (D.field "_testTableCol2" D.string) (D.field "_testTableCol3" D.string))
       }
 
--- updateData : List String -> Cmd Msg
--- updateData ds = 
---       let d = 
---       Http.post 
---         { url = "http://localhost:3030/data/test_table/first"
---         , body = Http.jsonBody (E.dict identity)
---         , expect = Http.expectJson GotInitialData (D.map3 FirstRow (D.field "_testTableCol1" D.string) (D.field "_testTableCol2" D.string) (D.field "_testTableCol3" D.string))
---         }
+updateData : FirstRow -> Cmd Msg
+updateData data = 
+      Http.post 
+        { url = "http://localhost:3030/data/test_table/first"
+        , body = firstRowToDict data |> E.dict identity E.string |> Http.jsonBody 
+        , expect = Http.expectWhatever DataPosted
+        }
 
 listToFirstRow : FirstRow -> List String -> FirstRow
 listToFirstRow default ds =
@@ -61,23 +64,51 @@ listToFirstRow default ds =
 firstRowToList : FirstRow -> List String
 firstRowToList row = [row.col1, row.col2, row.col3]
 
+firstRowToDict : FirstRow -> Dict String String
+firstRowToDict row = 
+  Dict.fromList [
+      ("_testTableRCol1", row.col1)
+    , ("_testTableRCol2", row.col2)
+    , ("_testTableRCol3", row.col3)
+    ]
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
-    AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable 
-                          newData = case i of
-                                  Just ds -> listToFirstRow model.data ds
-                                  Nothing -> model.data
-                      in 
-                      ( {model | avitoTable = t, data = newData}, Cmd.map AvitoTable cmd)
+    -- AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable 
+    --                       (newData, newCmd) = case i of
+    --                               Just ds -> (listToFirstRow model.data ds, Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> updateData])
+    --                               Nothing -> (model.data, Cmd.map AvitoTable cmd)
+    --                   in 
+    --                   ( {model | avitoTable = t, data = newData}, newCmd)
+    AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
+                      case i of
+                        Just ds -> (
+                            { model | 
+                                avitoTable = t
+                              , data = listToFirstRow model.data ds
+                              , postDataStatus = Loading
+                            }
+                          , Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> updateData]
+                          )
+                        Nothing -> ({model | avitoTable = t}, Cmd.map AvitoTable cmd)
+
 
     GotInitialData result ->
       case result of
         Ok row ->
-          ({ model | initialLoad = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
+          ({ model | initialLoadStatus = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
-          ({ model | initialLoad = Failure }, Cmd.none)
+          ({ model | initialLoadStatus = Failure }, Cmd.none)
+
+    DataPosted result ->
+      case result of
+        Ok _ ->
+          ({ model | postDataStatus = Success}, Cmd.none)
+
+        Err _ ->
+          ({ model | postDataStatus = Failure }, Cmd.none)
 
 main : Program () Model Msg
 main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \_ -> Sub.none }
@@ -91,7 +122,7 @@ view model =
  
 view2 : Model -> Html.Html Msg
 view2 model = 
-  case model.initialLoad of 
+  case model.initialLoadStatus of 
     Success -> Html.div [] [
         Table.view model.avitoTable |> Html.map AvitoTable
       , firstRowToList model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
