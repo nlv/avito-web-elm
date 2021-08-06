@@ -117,11 +117,12 @@ view : Model -> Html.Html Msg
 view model = 
     Grid.container []
         [ CDN.stylesheet
-        , view2 model
+        , viewPostDataStatus model
+        , viewAvitoTable model
         ] 
  
-view2 : Model -> Html.Html Msg
-view2 model = 
+viewAvitoTable : Model -> Html.Html Msg
+viewAvitoTable model = 
   case model.initialLoadStatus of 
     Success -> Html.div [] [
         Table.view model.avitoTable |> Html.map AvitoTable
@@ -129,6 +130,12 @@ view2 model =
       ]
     Loading -> Html.text "Загрузка данных"
     Failure -> Html.text "Ошибка загрузки данных"
+
+viewPostDataStatus model = 
+  case model.postDataStatus of 
+    Success -> Html.text ""
+    Loading -> Html.text "Отправка данных"
+    Failure -> Html.text "Ошибка отправки данных"
 
 
 mirrorTable : List String -> List String -> Html.Html Msg
