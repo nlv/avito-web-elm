@@ -6,7 +6,6 @@ import Platform.Cmd as Cmd
 import Html
 import Http
 import Browser
-import Task
 
 import Json.Decode as D
 
@@ -15,7 +14,6 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Table as BTable
 
 import AvitoTable as Table
-import Html.Attributes exposing (value)
 
 type Msg = AvitoTable Table.Msg | GotInitialData (Result Http.Error FirstRow)
 
