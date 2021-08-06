@@ -13,13 +13,18 @@ import Json.Encode as E
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
 import Bootstrap.Table as BTable
+import Bootstrap.Button as Button
 
 import AvitoTable as Table
 import Dict exposing (Dict)
 
-type Msg = AvitoTable Table.Msg | GotInitialData (Result Http.Error FirstRow) | DataPosted (Result Http.Error ())
+type Msg = 
+    AvitoTable Table.Msg 
+  | GotInitialData (Result Http.Error FirstRow) 
+  | DataPosted (Result Http.Error ())
+  | RefreshData
 
-type HttpStatus = Failure | Loading | Success
+type HttpStatus = Failure String | Loading String | Success
 
 type alias FirstRow = {
     col1 : String
@@ -28,16 +33,14 @@ type alias FirstRow = {
   }
 
 type alias Model = {
-    initialLoadStatus : HttpStatus 
-  , postDataStatus : HttpStatus  
+    httpStatus : HttpStatus 
   , avitoTable : Table.Model
   , data : FirstRow
   }
 
 initModel : Model
 initModel = {
-    initialLoadStatus = Loading
-  , postDataStatus = Success  
+    httpStatus = Loading "Получаем данные"
   , avitoTable = Table.initModel ["col1", "col2", "col3"] ["", "", ""]
   , data = {col1 = "", col2 = "", col3 = ""}
   }
@@ -75,19 +78,13 @@ firstRowToDict row =
 update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
-    -- AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable 
-    --                       (newData, newCmd) = case i of
-    --                               Just ds -> (listToFirstRow model.data ds, Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> updateData])
-    --                               Nothing -> (model.data, Cmd.map AvitoTable cmd)
-    --                   in 
-    --                   ( {model | avitoTable = t, data = newData}, newCmd)
     AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
                       case i of
                         Just ds -> (
                             { model | 
                                 avitoTable = t
                               , data = listToFirstRow model.data ds
-                              , postDataStatus = Loading
+                              , httpStatus = Loading "Сохраняем данные"
                             }
                           , Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> updateData]
                           )
@@ -97,46 +94,43 @@ update action model =
     GotInitialData result ->
       case result of
         Ok row ->
-          ({ model | initialLoadStatus = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
+          ({ model | httpStatus = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
-          ({ model | initialLoadStatus = Failure }, Cmd.none)
+          ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
 
     DataPosted result ->
       case result of
         Ok _ ->
-          ({ model | postDataStatus = Success}, Cmd.none)
+          ({ model | httpStatus = Success}, Cmd.none)
 
         Err _ ->
-          ({ model | postDataStatus = Failure }, Cmd.none)
+          ({ model | httpStatus = Failure  "Ошибка сохраннения данных"}, Cmd.none)
+
+    RefreshData -> (model, getData)
 
 main : Program () Model Msg
 main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \_ -> Sub.none }
 
 view : Model -> Html.Html Msg
 view model = 
-    Grid.container []
-        [ CDN.stylesheet
-        , viewPostDataStatus model
-        , viewAvitoTable model
-        ] 
+    ([ CDN.stylesheet] ++ viewHttpStatus model.httpStatus ++ viewAvitoTable model) |> Grid.container []
  
-viewAvitoTable : Model -> Html.Html Msg
-viewAvitoTable model = 
-  case model.initialLoadStatus of 
-    Success -> Html.div [] [
+viewAvitoTable : Model -> List (Html.Html Msg)
+viewAvitoTable model = [
         Table.view model.avitoTable |> Html.map AvitoTable
       , firstRowToList model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
       ]
-    Loading -> Html.text "Загрузка данных"
-    Failure -> Html.text "Ошибка загрузки данных"
 
-viewPostDataStatus model = 
-  case model.postDataStatus of 
-    Success -> Html.text ""
-    Loading -> Html.text "Отправка данных"
-    Failure -> Html.text "Ошибка отправки данных"
+viewHttpStatus : HttpStatus -> List (Html.Html Msg)
+viewHttpStatus status = 
+  case status of 
+    Success -> []
+    Loading s -> [Html.text s]
+    Failure s -> [Html.text s, refreshButton]
 
+refreshButton : Html.Html Msg
+refreshButton = Button.button [Button.small, Button.onClick RefreshData] [Html.text "Обновить"]    
 
 mirrorTable : List String -> List String -> Html.Html Msg
 mirrorTable hs bs = 
