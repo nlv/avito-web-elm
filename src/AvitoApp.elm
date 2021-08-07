@@ -27,7 +27,8 @@ type Msg =
 type HttpStatus = Failure String | Loading String | Success
 
 type alias FirstRow = {
-    col1 : String
+    id   : Int
+  , col1 : String
   , col2 : String
   , col3 : String
   }
@@ -42,37 +43,44 @@ initModel : Model
 initModel = {
     httpStatus = Loading "Получаем данные"
   , avitoTable = Table.initModel ["col1", "col2", "col3"] ["", "", ""]
-  , data = {col1 = "", col2 = "", col3 = ""}
+  , data = {id = 1, col1 = "", col2 = "", col3 = ""}
   }
 
 getData : Cmd Msg
 getData = Http.get
-      { url = "http://localhost:3030/data/test_table/first"
-      , expect = Http.expectJson GotInitialData (D.map3 FirstRow (D.field "_testTableCol1" D.string) (D.field "_testTableCol2" D.string) (D.field "_testTableCol3" D.string))
+      { url = "http://localhost:3030/data/test_table/1"
+      , expect = Http.expectJson GotInitialData (
+                    D.map4 FirstRow 
+                      (D.field "_testTableId" D.int)
+                      (D.field "_testTableCol1" D.string)
+                      (D.field "_testTableCol2" D.string)
+                      (D.field "_testTableCol3" D.string)
+                    )
       }
 
-updateData : FirstRow -> Cmd Msg
-updateData data = 
+saveData : FirstRow -> Cmd Msg
+saveData data = 
       Http.post 
-        { url = "http://localhost:3030/data/test_table/first"
-        , body = firstRowToDict data |> E.dict identity E.string |> Http.jsonBody 
+        { url = "http://localhost:3030/data/test_table"
+        , body = E.list firstRowToValue [data] |>  Http.jsonBody 
         , expect = Http.expectWhatever DataPosted
         }
 
 listToFirstRow : FirstRow -> List String -> FirstRow
 listToFirstRow default ds =
   let da = Array.fromList ds in
-  Maybe.map3 (\c1 c2 c3 -> {col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 da) (Array.get 1 da) (Array.get 2 da) |> Maybe.withDefault default 
+  Maybe.map3 (\c1 c2 c3 -> {id = 1, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 da) (Array.get 1 da) (Array.get 2 da) |> Maybe.withDefault default 
 
 firstRowToList : FirstRow -> List String
 firstRowToList row = [row.col1, row.col2, row.col3]
 
-firstRowToDict : FirstRow -> Dict String String
-firstRowToDict row = 
-  Dict.fromList [
-      ("_testTableRCol1", row.col1)
-    , ("_testTableRCol2", row.col2)
-    , ("_testTableRCol3", row.col3)
+firstRowToValue : FirstRow -> E.Value
+firstRowToValue row = 
+  E.object [
+      ("_testTableId", E.int row.id)
+    , ("_testTableCol1", E.string row.col1)
+    , ("_testTableCol2", E.string row.col2)
+    , ("_testTableCol3", E.string row.col3)
     ]
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -86,7 +94,7 @@ update action model =
                               , data = listToFirstRow model.data ds
                               , httpStatus = Loading "Сохраняем данные"
                             }
-                          , Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> updateData]
+                          , Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> saveData]
                           )
                         Nothing -> ({model | avitoTable = t}, Cmd.map AvitoTable cmd)
 
