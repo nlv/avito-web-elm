@@ -17,10 +17,11 @@ import Bootstrap.Button as Button
 
 import AvitoTable as Table
 import Maybe exposing (withDefault)
+import Maybe.Extra as Maybe
 
 type Msg = 
     AvitoTable Table.Msg 
-  | GotInitialData (Result Http.Error FirstRow) 
+  | GotInitialData (Result Http.Error (List FirstRow)) 
   | DataPosted (Result Http.Error ())
   | RefreshData
 
@@ -36,39 +37,39 @@ type alias FirstRow = {
 type alias Model = {
     httpStatus : HttpStatus 
   , avitoTable : Table.Model
-  , data : FirstRow
+  , data : List FirstRow
   }
 
 initModel : Model
 initModel = {
     httpStatus = Loading "Получаем данные"
   , avitoTable = Table.initModel (Array.fromList ["col1", "col2", "col3"]) Array.empty
-  , data = {id = 1, col1 = "", col2 = "", col3 = ""}
+  , data = []
   }
 
 getData : Cmd Msg
 getData = Http.get
-      { url = "http://localhost:3030/data/test_table/1"
+      { url = "http://localhost:3030/data/test_table"
       , expect = Http.expectJson GotInitialData (
                     D.map4 FirstRow 
                       (D.field "_testTableId" D.int)
                       (D.field "_testTableCol1" D.string)
                       (D.field "_testTableCol2" D.string)
-                      (D.field "_testTableCol3" D.string)
+                      (D.field "_testTableCol3" D.string) |> D.list
                     )
       }
 
-saveData : FirstRow -> Cmd Msg
+saveData : List FirstRow -> Cmd Msg
 saveData data = 
       Http.post 
         { url = "http://localhost:3030/data/test_table"
-        , body = E.list firstRowToValue [data] |>  Http.jsonBody 
+        , body = E.list firstRowToValue data |>  Http.jsonBody 
         , expect = Http.expectWhatever DataPosted
         }
 
-arrayToFirstRow : Array.Array String -> Maybe FirstRow
-arrayToFirstRow ds =
-  Maybe.map3 (\c1 c2 c3 -> {id = 1, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 ds) (Array.get 1 ds) (Array.get 2 ds)
+arrayToFirstRow : Int -> Array.Array String -> Maybe FirstRow
+arrayToFirstRow id ds =
+  Maybe.map3 (\c1 c2 c3 -> {id = id, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 ds) (Array.get 1 ds) (Array.get 2 ds)
 
 firstRowToArray : FirstRow -> Array.Array String
 firstRowToArray row = Array.fromList [row.col1, row.col2, row.col3]
@@ -88,11 +89,11 @@ update action model =
     AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
                       case i of
                         Just ds -> 
-                            let newData = Array.get 0 ds |> Maybe.andThen arrayToFirstRow |> Maybe.withDefault model.data 
+                            let newData = Array.indexedMap arrayToFirstRow ds |> Array.toList |> Maybe.combine |> Maybe.withDefault model.data
                             in  (
                                 { model | 
                                     avitoTable = t
-                                  , data = Array.get 0 ds |> Maybe.andThen arrayToFirstRow |> Maybe.withDefault model.data
+                                  , data = newData
                                   , httpStatus = Loading "Сохраняем данные"
                                 }
                                 , Cmd.batch [Cmd.map AvitoTable cmd, saveData newData]
@@ -102,8 +103,8 @@ update action model =
 
     GotInitialData result ->
       case result of
-        Ok row ->
-          ({ model | httpStatus = Success, data = row, avitoTable = Array.fromList [firstRowToArray row] |> Table.setData model.avitoTable }, Cmd.none)
+        Ok rows ->
+          ({ model | httpStatus = Success, data = rows, avitoTable = Array.fromList (List.map firstRowToArray rows) |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
           ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
@@ -128,7 +129,6 @@ view model =
 viewAvitoTable : Model -> List (Html.Html Msg)
 viewAvitoTable model = [
         Table.view model.avitoTable |> Html.map AvitoTable
-      , firstRowToArray model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
       ]
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
@@ -141,12 +141,3 @@ viewHttpStatus status =
 refreshButton : Html.Html Msg
 refreshButton = Button.button [Button.small, Button.onClick RefreshData] [Html.text "Обновить"]    
 
-mirrorTable : List String -> Array.Array String -> Html.Html Msg
-mirrorTable hs bs = 
-    BTable.table {
-      options = [ BTable.bordered, BTable.hover, BTable.responsive ]
-    , thead = BTable.simpleThead (List.map (\i -> BTable.th [] [Html.text i]) hs) 
-    , tbody = BTable.tbody [] [
-            BTable.tr [] (List.map (\i -> BTable.td [] [Html.text i]) (Array.toList bs))
-        ]
-    }

@@ -61,11 +61,11 @@ type alias Model = {
 initModel : (Array.Array String) -> Array.Array (Array.Array String) -> Model
 initModel hs ds = {
         cellsInfo = hs |> Array.map textCell
-      , cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow 
+      , cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow (Array.length hs)
       }    
 
 setData : Model -> Array.Array (Array.Array String) -> Model
-setData model ds = {model | cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow}
+setData model ds = {model | cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow (Array.length model.cellsInfo)}
 
 update : Msg -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
 update action model =
@@ -78,7 +78,7 @@ update action model =
       , Nothing
       )
     CellSetEditable i j -> 
-      let addNewRow cells = if Array2D.rows cells == i + 1 then appendEmptyRow cells else cells
+      let addNewRow cells = if Array2D.rows cells == i + 1 then appendEmptyRow (Array.length model.cellsInfo) cells else cells
       in
       (
         {model | cells = addNewRow (updateArray2D i j (\c -> {c | status = CellEditable c.value}) model.cells)}
@@ -101,7 +101,7 @@ update action model =
             }
           newCells = updateArray2D i j updateCell model.cells
       in
-        ({ model | cells = newCells }, Cmd.none, Array2D.map (.value) newCells |> toArrayOfArrays |> Just
+        ({ model | cells = newCells }, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just
         )                                                                             
 
     FocusResult result ->
@@ -140,4 +140,9 @@ toArrayOfArrays a =
 updateArray2D : Int -> Int -> (a -> a) -> Array2D.Array2D a -> Array2D.Array2D a
 updateArray2D i j f ds =  Array2D.get i j ds |> Maybe.map f |> Maybe.map (\d -> Array2D.set i j d ds) |> Maybe.withDefault ds
 
-appendEmptyRow = Array2D.appendRow Array.empty {value = "", status = CellNormal}      
+defaultCell = {value = "", status = CellNormal}
+
+appendEmptyRow colsCnt ds = 
+  let rowsCnt = Array2D.rows ds
+  in
+  if Array2D.rows ds == 0 then Array2D.fromList [List.repeat colsCnt defaultCell] else Array2D.appendRow (Array.fromList [defaultCell]) defaultCell ds
