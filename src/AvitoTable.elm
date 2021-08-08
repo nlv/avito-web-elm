@@ -27,6 +27,7 @@ type Msg =
     | CellSetNormal Int Int
 
     | DeleteRow Int
+    | AddRow Int
 
     | FocusResult (Result Error ())
 
@@ -84,7 +85,7 @@ update action model =
       in
       (
         {model | cells = addNewRow (updateArray2D i j (\c -> {c | status = CellEditable c.value}) model.cells)}
-      , Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus (c.focusId i j))))))
+      , Maybe.withDefault Cmd.none (Array.get j model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus (c.focusId i j))))))
       , Nothing
       )      
     CellCancelEditable i j -> (
@@ -105,6 +106,12 @@ update action model =
       in
         ({ model | cells = newCells }, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just
         )                                                                             
+
+    AddRow i -> 
+      let colsCnt = Array.length model.cellsInfo
+          newCells = List.repeat colsCnt defaultCell |> Array.fromList |> addRow i model.cells
+      in
+      ({model | cells = newCells}, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just )
 
     DeleteRow i -> 
       if i == Array2D.rows model.cells - 1 then
@@ -143,10 +150,17 @@ avitoTable model =
     }
 
 avitoRow : Int -> List (Table.Cell Msg) -> Table.Row Msg
-avitoRow i rowV = Table.tr [] (rowV ++ [Table.td [] [Button.button [Button.small, Button.onClick (DeleteRow i)] [text "Удалить"]]])
+avitoRow i rowV = 
+  Table.tr 
+    [] 
+    (rowV ++ [
+      Table.td [] [
+          Button.button [Button.small, Button.onClick (DeleteRow i)] [text "Удалить"]
+        , Button.button [Button.small, Button.onClick (AddRow i)] [text "Добавить"]
+        ]])
 
 avitoLastRow : Int -> List (Table.Cell Msg) -> Table.Row Msg
-avitoLastRow i rowV = Table.tr [] (rowV ++ [Table.td [] []])
+avitoLastRow i rowV = Table.tr [] (rowV ++ [Table.td [] [Button.button [Button.small, Button.onClick (AddRow i)] [text "Добавить"]]])
 
 
 toArrayOfArrays : Array2D.Array2D a -> Array.Array (Array.Array a)
@@ -156,9 +170,14 @@ toArrayOfArrays a =
 updateArray2D : Int -> Int -> (a -> a) -> Array2D.Array2D a -> Array2D.Array2D a
 updateArray2D i j f ds =  Array2D.get i j ds |> Maybe.map f |> Maybe.map (\d -> Array2D.set i j d ds) |> Maybe.withDefault ds
 
+defaultCell : Cell
 defaultCell = {value = "", status = CellNormal}
 
+appendEmptyRow : Int -> Array2D.Array2D Cell -> Array2D.Array2D Cell
 appendEmptyRow colsCnt ds = 
-  let rowsCnt = Array2D.rows ds
-  in
   if Array2D.rows ds == 0 then Array2D.fromList [List.repeat colsCnt defaultCell] else Array2D.appendRow (Array.fromList [defaultCell]) defaultCell ds
+
+addRow : Int -> Array2D.Array2D a -> Array a -> Array2D.Array2D a
+addRow i ds d = 
+  let rows = toArrayOfArrays ds 
+  in (Array.slice i (Array.length rows) rows) |> (\rs -> Array.append (Array.slice 0 i rows |> Array.push d) rs) |> Array2D.fromArray
