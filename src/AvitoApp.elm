@@ -134,7 +134,7 @@ viewAvitoTable model = [
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 
   case status of 
-    Success -> []
+    Success -> [Html.text "Норм"]
     Loading s -> [Html.text s]
     Failure s -> [Html.text s, refreshButton]
 
