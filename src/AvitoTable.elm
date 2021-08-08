@@ -26,6 +26,8 @@ type Msg =
     | CellCancelEditable Int Int
     | CellSetNormal Int Int
 
+    | DeleteRow Int
+
     | FocusResult (Result Error ())
 
 type alias CellInfo = { 
@@ -104,6 +106,11 @@ update action model =
         ({ model | cells = newCells }, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just
         )                                                                             
 
+    DeleteRow i -> 
+      let newCells = Array2D.deleteRow i model.cells
+      in
+      ({ model | cells = newCells}, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just)
+
     FocusResult result ->
             case result of
                 Err _ -> (model, Cmd.none, Nothing)
@@ -128,10 +135,13 @@ avitoTable model =
     in
     Table.table {
       options = [ Table.bordered, Table.hover, Table.responsive ]
-    , thead = Table.simpleThead (List.map (Table.th []) headP) 
-    , tbody = Table.tbody [] (List.map (Table.tr []) rows)
+    , thead = (List.map (Table.th []) headP) ++ [Table.th [] []] |> Table.simpleThead 
+    , tbody = Table.tbody [] (List.indexedMap avitoRow rows)
     }
 
+avitoRow : Int -> List (Table.Cell Msg) -> Table.Row Msg
+-- avitoRow i rowV = cells ++ [Html.text "УДАЛИТЬ"]
+avitoRow i rowV = Table.tr [] (rowV ++ [Table.td [] [Button.button [Button.small, Button.onClick (DeleteRow i)] [text "Удалить"]]])
 
 toArrayOfArrays : Array2D.Array2D a -> Array.Array (Array.Array a)
 toArrayOfArrays a = 
