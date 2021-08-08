@@ -107,9 +107,12 @@ update action model =
         )                                                                             
 
     DeleteRow i -> 
-      let newCells = Array2D.deleteRow i model.cells
-      in
-      ({ model | cells = newCells}, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just)
+      if i == Array2D.rows model.cells - 1 then
+        (model, Cmd.none, Nothing)
+      else
+        let newCells = Array2D.deleteRow i model.cells
+        in
+        ({ model | cells = newCells}, Cmd.none, Array2D.map (.value) newCells |> \ds -> Array2D.deleteRow ((Array2D.rows ds) - 1) ds |> toArrayOfArrays |> Just)
 
     FocusResult result ->
             case result of
@@ -136,12 +139,15 @@ avitoTable model =
     Table.table {
       options = [ Table.bordered, Table.hover, Table.responsive ]
     , thead = (List.map (Table.th []) headP) ++ [Table.th [] []] |> Table.simpleThead 
-    , tbody = Table.tbody [] (List.indexedMap avitoRow rows)
+    , tbody = Table.tbody [] (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) rows)
     }
 
 avitoRow : Int -> List (Table.Cell Msg) -> Table.Row Msg
--- avitoRow i rowV = cells ++ [Html.text "УДАЛИТЬ"]
 avitoRow i rowV = Table.tr [] (rowV ++ [Table.td [] [Button.button [Button.small, Button.onClick (DeleteRow i)] [text "Удалить"]]])
+
+avitoLastRow : Int -> List (Table.Cell Msg) -> Table.Row Msg
+avitoLastRow i rowV = Table.tr [] (rowV ++ [Table.td [] []])
+
 
 toArrayOfArrays : Array2D.Array2D a -> Array.Array (Array.Array a)
 toArrayOfArrays a = 
