@@ -1,10 +1,8 @@
--- module AvitoTable exposing (Msg), CellInfo, textCell, CellStatus(..), Cell, Model, initModel, update, view)
 module AvitoTable exposing (Msg, Model, update, view, initModel, setData)
 
 import List as List
 import Array as Array
 import Array2D as Array2D
-import Tuple as Tuple
 
 import Task
 import Html exposing (text, div)
@@ -19,8 +17,6 @@ import Bootstrap.Form.Input as Input
 import Maybe exposing (withDefault)
 import Array exposing (Array)
 
-
-{- ------ -}
 
 type Msg = 
       SetData (Array.Array (Array.Array String))
@@ -57,8 +53,6 @@ type CellStatus = CellNormal | CellEditable String
 
 type alias Cell = { value : String, status : CellStatus}
 
-{- ----- -}
-
 type alias Model = {
       cellsInfo : Array.Array CellInfo
     , cells : Array2D.Array2D Cell
@@ -67,11 +61,11 @@ type alias Model = {
 initModel : (Array.Array String) -> Array.Array (Array.Array String) -> Model
 initModel hs ds = {
         cellsInfo = hs |> Array.map textCell
-      , cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds)
+      , cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow 
       }    
 
 setData : Model -> Array.Array (Array.Array String) -> Model
-setData model ds = {model | cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds)}
+setData model ds = {model | cells = Array2D.map (\c -> {value = c, status = CellNormal}) (Array2D.fromArray ds) |> appendEmptyRow}
 
 update : Msg -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
 update action model =
@@ -83,8 +77,11 @@ update action model =
       , Cmd.none
       , Nothing
       )
-    CellSetEditable i j -> (
-        {model | cells = updateArray2D i j (\c -> {c | status = CellEditable c.value}) model.cells}
+    CellSetEditable i j -> 
+      let addNewRow cells = if Array2D.rows cells == i + 1 then appendEmptyRow cells else cells
+      in
+      (
+        {model | cells = addNewRow (updateArray2D i j (\c -> {c | status = CellEditable c.value}) model.cells)}
       , Maybe.withDefault Cmd.none (Array.get i model.cellsInfo |> Maybe.andThen (\c -> Just ((Task.attempt FocusResult (focus (c.focusId i j))))))
       , Nothing
       )      
@@ -142,3 +139,5 @@ toArrayOfArrays a =
 
 updateArray2D : Int -> Int -> (a -> a) -> Array2D.Array2D a -> Array2D.Array2D a
 updateArray2D i j f ds =  Array2D.get i j ds |> Maybe.map f |> Maybe.map (\d -> Array2D.set i j d ds) |> Maybe.withDefault ds
+
+appendEmptyRow = Array2D.appendRow Array.empty {value = "", status = CellNormal}      

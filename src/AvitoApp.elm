@@ -42,7 +42,7 @@ type alias Model = {
 initModel : Model
 initModel = {
     httpStatus = Loading "Получаем данные"
-  , avitoTable = Table.initModel (Array.fromList ["col1", "col2", "col3"]) (Array.fromList [Array.fromList ["", "", ""]])
+  , avitoTable = Table.initModel (Array.fromList ["col1", "col2", "col3"]) Array.empty
   , data = {id = 1, col1 = "", col2 = "", col3 = ""}
   }
 
