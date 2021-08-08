@@ -16,7 +16,7 @@ import Bootstrap.Table as BTable
 import Bootstrap.Button as Button
 
 import AvitoTable as Table
-import Dict exposing (Dict)
+import Maybe exposing (withDefault)
 
 type Msg = 
     AvitoTable Table.Msg 
@@ -42,7 +42,7 @@ type alias Model = {
 initModel : Model
 initModel = {
     httpStatus = Loading "Получаем данные"
-  , avitoTable = Table.initModel ["col1", "col2", "col3"] ["", "", ""]
+  , avitoTable = Table.initModel (Array.fromList ["col1", "col2", "col3"]) (Array.fromList [Array.fromList ["", "", ""]])
   , data = {id = 1, col1 = "", col2 = "", col3 = ""}
   }
 
@@ -66,13 +66,12 @@ saveData data =
         , expect = Http.expectWhatever DataPosted
         }
 
-listToFirstRow : FirstRow -> List String -> FirstRow
-listToFirstRow default ds =
-  let da = Array.fromList ds in
-  Maybe.map3 (\c1 c2 c3 -> {id = 1, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 da) (Array.get 1 da) (Array.get 2 da) |> Maybe.withDefault default 
+arrayToFirstRow : Array.Array String -> Maybe FirstRow
+arrayToFirstRow ds =
+  Maybe.map3 (\c1 c2 c3 -> {id = 1, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 ds) (Array.get 1 ds) (Array.get 2 ds)
 
-firstRowToList : FirstRow -> List String
-firstRowToList row = [row.col1, row.col2, row.col3]
+firstRowToArray : FirstRow -> Array.Array String
+firstRowToArray row = Array.fromList [row.col1, row.col2, row.col3]
 
 firstRowToValue : FirstRow -> E.Value
 firstRowToValue row = 
@@ -88,21 +87,23 @@ update action model =
   case action of
     AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
                       case i of
-                        Just ds -> (
-                            { model | 
-                                avitoTable = t
-                              , data = listToFirstRow model.data ds
-                              , httpStatus = Loading "Сохраняем данные"
-                            }
-                          , Cmd.batch [Cmd.map AvitoTable cmd, listToFirstRow model.data ds |> saveData]
-                          )
+                        Just ds -> 
+                            let newData = Array.get 0 ds |> Maybe.andThen arrayToFirstRow |> Maybe.withDefault model.data 
+                            in  (
+                                { model | 
+                                    avitoTable = t
+                                  , data = Array.get 0 ds |> Maybe.andThen arrayToFirstRow |> Maybe.withDefault model.data
+                                  , httpStatus = Loading "Сохраняем данные"
+                                }
+                                , Cmd.batch [Cmd.map AvitoTable cmd, saveData newData]
+                                )
                         Nothing -> ({model | avitoTable = t}, Cmd.map AvitoTable cmd)
 
 
     GotInitialData result ->
       case result of
         Ok row ->
-          ({ model | httpStatus = Success, data = row, avitoTable = firstRowToList row |> Table.setData model.avitoTable }, Cmd.none)
+          ({ model | httpStatus = Success, data = row, avitoTable = Array.fromList [firstRowToArray row] |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
           ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
@@ -127,7 +128,7 @@ view model =
 viewAvitoTable : Model -> List (Html.Html Msg)
 viewAvitoTable model = [
         Table.view model.avitoTable |> Html.map AvitoTable
-      , firstRowToList model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
+      , firstRowToArray model.data |> mirrorTable (List.map (.name) (Array.toList model.avitoTable.cellsInfo))
       ]
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
@@ -140,12 +141,12 @@ viewHttpStatus status =
 refreshButton : Html.Html Msg
 refreshButton = Button.button [Button.small, Button.onClick RefreshData] [Html.text "Обновить"]    
 
-mirrorTable : List String -> List String -> Html.Html Msg
+mirrorTable : List String -> Array.Array String -> Html.Html Msg
 mirrorTable hs bs = 
     BTable.table {
       options = [ BTable.bordered, BTable.hover, BTable.responsive ]
     , thead = BTable.simpleThead (List.map (\i -> BTable.th [] [Html.text i]) hs) 
     , tbody = BTable.tbody [] [
-            BTable.tr [] (List.map (\i -> BTable.td [] [Html.text i]) bs) 
+            BTable.tr [] (List.map (\i -> BTable.td [] [Html.text i]) (Array.toList bs))
         ]
     }
