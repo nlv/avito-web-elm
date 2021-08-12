@@ -4,19 +4,15 @@ import Array as Array
 
 import Platform.Cmd as Cmd
 import Html
+import Html.Events exposing (onClick)
 import Http
 import Browser
 
 import Json.Decode as D
 import Json.Encode as E
 
-import Bootstrap.CDN as CDN
-import Bootstrap.Grid as Grid
-import Bootstrap.Table as BTable
-import Bootstrap.Button as Button
-
 import AvitoTable as Table
-import Maybe exposing (withDefault)
+-- import Maybe exposing (withDefault)
 import Maybe.Extra as Maybe
 
 type Msg = 
@@ -124,12 +120,10 @@ main =  Browser.element { init = \_ -> (initModel, getData), update = update, vi
 
 view : Model -> Html.Html Msg
 view model = 
-    ([ CDN.stylesheet] ++ viewHttpStatus model.httpStatus ++ viewAvitoTable model) |> Grid.container []
+    Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = [
-        Table.view model.avitoTable |> Html.map AvitoTable
-      ]
+viewAvitoTable model = [ Table.view model.avitoTable |> Html.map AvitoTable ]
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 
@@ -139,5 +133,5 @@ viewHttpStatus status =
     Failure s -> [Html.text s, refreshButton]
 
 refreshButton : Html.Html Msg
-refreshButton = Button.button [Button.small, Button.onClick RefreshData] [Html.text "Обновить"]    
+refreshButton = Html.button [onClick RefreshData] [Html.text "Обновить"]    
 

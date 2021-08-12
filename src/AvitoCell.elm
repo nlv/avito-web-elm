@@ -1,16 +1,10 @@
 module AvitoCell exposing (Msg, Model, update, view, text, setValue)
 
 import Task
-import Html as Html
-import Html.Events exposing (onClick)
-import Html.Attributes exposing (id)
+import Html exposing (Html, td, input, button)
+import Html.Events exposing (onClick, onInput)
+import Html.Attributes exposing (id, value, style)
 import Browser.Dom exposing (focus, Error)
-
-import Bootstrap.Table as Table
-import Bootstrap.Button as Button
-import Bootstrap.Utilities.Flex as Flex
-import Bootstrap.Form.Input as Input
-
 
 type Msg = 
       SetValue String
@@ -28,8 +22,8 @@ type alias Model = {
       value   : String  
     , key     : String
     , status  : Status
-    , normal  : String -> Table.Cell Msg
-    , edit    : String -> Table.Cell Msg    
+    , normal  : String -> Html.Html Msg
+    , edit    : String -> Html.Html Msg    
     , focusId : String
     }
 
@@ -38,13 +32,11 @@ text key val0 = let focusId = "cell-editable-input-" ++ key in
   { value = val0
   , key = key
   , status = Normal
-  , normal = \val -> Table.td [Table.cellAttr (onClick SetEditable)] [Html.text val]
-  , edit = \val -> Table.td [] [
-      Html.div [Flex.inline] [
-        Input.text [Input.attrs [id focusId], Input.small, Input.value val, Input.onInput Input]
-      , Button.button [Button.small, Button.onClick SetNormal] [Html.text "V"]
-      , Button.button [Button.small, Button.onClick CancelEditable] [Html.text "X"]
-      ]
+  , normal = \val -> td [style "border" "solid 1px black", style "width" "600px", onClick SetEditable] [Html.text val]
+  , edit = \val -> td [style "border" "solid 1px black", style "width" "600px"] [
+        input [id focusId, value val, onInput Input] []
+      , button [onClick SetNormal] [Html.text "V"] 
+      , button [onClick CancelEditable] [Html.text "X"]
     ]  
   , focusId = focusId
   }
@@ -59,9 +51,9 @@ update action model =
 
     Input str -> ({ model | status = Editable str}, Cmd.none, False)
 
-    SetEditable -> ({ model | status = Editable model.value}, Cmd.none, False)
+    SetEditable -> ({ model | status = Editable model.value}, Task.attempt FocusResult (focus (Debug.log "FOCUS" model.focusId)), False)
 
-    CancelEditable -> ({ model | status = Normal}, Task.attempt FocusResult (focus model.focusId), False)
+    CancelEditable -> ({ model | status = Normal}, Cmd.none, False)
 
     SetNormal -> 
       let newValue = 
@@ -76,15 +68,8 @@ update action model =
                 Err _ -> (model, Cmd.none, False)
                 Ok _ -> (model, Cmd.none, False)
 
-view : Model -> Table.Cell Msg
+view : Model -> Html Msg
 view model = 
   case model.status of
     Normal       -> model.normal model.value
     Editable str -> model.edit str 
-
-view2 : Model -> Table.Cell msg
-view2 model = 
-  case model.status of
-    Normal       -> model.normal model.value
-    Editable str -> model.edit str     
- 
