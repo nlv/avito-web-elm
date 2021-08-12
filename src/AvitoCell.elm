@@ -51,7 +51,7 @@ update action model =
 
     Input str -> ({ model | status = Editable str}, Cmd.none, False)
 
-    SetEditable -> ({ model | status = Editable model.value}, Task.attempt FocusResult (focus (Debug.log "FOCUS" model.focusId)), False)
+    SetEditable -> ({ model | status = Editable model.value}, Task.attempt FocusResult (focus model.focusId), False)
 
     CancelEditable -> ({ model | status = Normal}, Cmd.none, False)
 
