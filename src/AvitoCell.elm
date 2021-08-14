@@ -1,20 +1,26 @@
 module AvitoCell exposing (Msg, Model, update, view, text, setValue)
 
 import Task
-import Html exposing (Html, td, input, button)
-import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (id, value, style)
 import Browser.Dom exposing (focus, Error)
+
+import Html exposing (Html, Attribute, td, input)
+import Html.Events exposing (onClick, onInput, on, onBlur, keyCode)
+import Html.Attributes exposing (id, value, style)
+
+import Json.Decode as Json
+
+
 
 type Msg = 
       SetValue String
 
     | Input String
     | SetEditable 
-    | CancelEditable
     | SetNormal
 
     | FocusResult (Result Error ())
+    | KeyUp Int
+
 
 type Status = Normal | Editable String
 
@@ -34,9 +40,7 @@ text key val0 = let focusId = "cell-editable-input-" ++ key in
   , status = Normal
   , normal = \val -> td [style "border" "solid 1px black", style "width" "600px", onClick SetEditable] [Html.text val]
   , edit = \val -> td [style "border" "solid 1px black", style "width" "600px"] [
-        input [id focusId, value val, onInput Input] []
-      , button [onClick SetNormal] [Html.text "V"] 
-      , button [onClick CancelEditable] [Html.text "X"]
+        input [id focusId, value val, onInput Input, onKeyUp KeyUp, onBlur SetNormal, style "width" "580px", style "border" "none"] []
     ]  
   , focusId = focusId
   }
@@ -49,27 +53,33 @@ update action model =
   case action of
     SetValue val -> (setValue model val, Cmd.none, False)
 
-    Input str -> ({ model | status = Editable str}, Cmd.none, False)
+    Input str -> ({ model | value = str}, Cmd.none, False)
 
     SetEditable -> ({ model | status = Editable model.value}, Task.attempt FocusResult (focus model.focusId), False)
 
-    CancelEditable -> ({ model | status = Normal}, Cmd.none, False)
-
-    SetNormal -> 
-      let newValue = 
-            case model.status of 
-              Normal -> model.value 
-              Editable str -> str     
-      in
-        ({ model | value = newValue, status = Normal }, Cmd.none, True)
+    SetNormal -> ({ model | status = Normal }, Cmd.none, True)
 
     FocusResult result ->
             case result of
                 Err _ -> (model, Cmd.none, False)
                 Ok _ -> (model, Cmd.none, False)
 
+    KeyUp 27 -> (calceledModel model, Cmd.none, False)
+    KeyUp _ ->  (model, Cmd.none, False)          
+
+calceledModel : Model -> Model
+calceledModel model = 
+      let newValue = case model.status of 
+                        Editable str -> str  
+                        _ -> model.value
+      in { model | status = Normal, value = newValue}
+
 view : Model -> Html Msg
 view model = 
   case model.status of
     Normal       -> model.normal model.value
-    Editable str -> model.edit str 
+    Editable _   -> model.edit model.value
+
+onKeyUp : (Int -> msg) -> Attribute msg
+onKeyUp tagger =
+  on "keydown" (Json.map tagger keyCode)

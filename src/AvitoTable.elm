@@ -28,6 +28,7 @@ type alias Model = {
     , cells : Array2D.Array2D Cell.Model
     , rowsCnt : Int
     , colsCnt : Int
+    -- , focused : Maybe (Int, Int)
     }
 
 initModel : (Array.Array String) -> Array.Array (Array.Array String) -> Model
@@ -41,6 +42,7 @@ initModel hs ds =
   , cells = dataToCells Cell.text cellsInfo ds2 
   , rowsCnt = Array.length ds + 1
   , colsCnt = colsCnt
+  -- , focused = Nothing
   }    
 
 getData : Model -> Array.Array (Array.Array String)
