@@ -7,13 +7,14 @@ import Html
 import Html.Events exposing (onClick)
 import Http
 import Browser
+import Maybe.Extra as Maybe
 
 import Json.Decode as D
 import Json.Encode as E
 
 import AvitoTable as Table
--- import Maybe exposing (withDefault)
-import Maybe.Extra as Maybe
+import AvitoCell as Cell exposing (text, select)
+
 
 type Msg = 
     AvitoTable Table.Msg 
@@ -37,9 +38,12 @@ type alias Model = {
   }
 
 initModel : Model
-initModel = {
+initModel = 
+  let options3 = [("", ""), ("A", "A"), ("B", "B")]
+  in
+  {
     httpStatus = Loading "Получаем данные"
-  , avitoTable = Table.initModel (Array.fromList ["col1", "col2", "col3"]) Array.empty
+  , avitoTable = Table.initModel (Array.fromList [("col1", Cell.text), ("col2", Cell.text), ("col3", Cell.select options3)]) Array.empty
   , data = []
   }
 

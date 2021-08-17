@@ -1,11 +1,11 @@
-module AvitoCell exposing (Msg, Model, update, view, text, setValue, focusIn, savingFocusOut, cancelingFocusOut)
+module AvitoCell exposing (Msg, Model, update, view, text, select, setValue, focusIn, savingFocusOut, cancelingFocusOut)
 
 import Task
 import Browser.Dom exposing (focus, Error)
 
-import Html exposing (Html, Attribute, td, input)
+import Html exposing (Html, Attribute, td, input, select)
 import Html.Events exposing (onClick, onInput, on, onBlur, keyCode, onFocus, on)
-import Html.Attributes exposing (id, value, style, autofocus)
+import Html.Attributes exposing (id, value, style, autofocus, selected)
 
 import Json.Decode as Json
 
@@ -47,6 +47,23 @@ text val0 = let focusId key = "cell-editable-input-" ++ key in
     ]  
   , focusId = focusId
   }
+
+select : List (String, String) -> String -> Model
+-- text key val0 = let focusId = "cell-editable-input-" ++ key in 
+select options val0 = let focusId key = "cell-editable-input-" ++ key in 
+  { value = val0
+  -- , key = key
+  , status = Normal
+  , normal = \key val -> [
+        Html.select [id (focusId key), value val, style "width" "580px", style "border" "none"] <|
+          List.map (\(v, n) -> Html.option [value v, selected (if v == val0 then True else False)] [Html.text n]) options
+    ]    
+  , edit = \key val -> [
+        Html.select [id (focusId key), value val, style "width" "580px", style "border" "none", onInput Input] <|
+          List.map (\(v, n) -> Html.option [value v, selected (if v == val0 then True else False)] [Html.text n]) options
+    ]    
+  , focusId = focusId
+  }  
 
 setValue : Model -> String -> Model
 setValue model val = {model | value = val}

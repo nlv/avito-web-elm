@@ -43,10 +43,10 @@ type alias Model = {
     , focused : Maybe (Int, Int)
     }
 
-initModel : (Array.Array String) -> Array.Array (Array.Array String) -> Model
+initModel : (Array.Array (String, (String -> Cell.Model))) -> Array.Array (Array.Array String) -> Model
 initModel hs ds = 
   let colsCnt = Array.length hs
-      cellsInfo  = Array.map (\name -> {name = name, mkModel = Cell.text}) hs
+      cellsInfo  = Array.map (\(name, mkModel) -> {name = name, mkModel = mkModel}) hs
       ds2 = appendRow (Array.repeat colsCnt "") "" (Array2D.fromArray ds)
   in
   {
@@ -61,7 +61,7 @@ getData : Model -> Array.Array (Array.Array String)
 getData model = Array2D.deleteRow (model.rowsCnt - 1) model.cells |> Array2D.map (.value) |> toArrayOfArrays
 
 setData : Model -> Array.Array (Array.Array String) -> Model
-setData model ds = initModel (Array.map (.name) model.cellsInfo) ds
+setData model ds = initModel (Array.map (\i -> (i.name, i.mkModel)) model.cellsInfo) ds
 
 update : Msg -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
 update action model =
@@ -194,7 +194,7 @@ dataToCells : (String -> Cell.Model) -> Array.Array CellInfo -> Array2D.Array2D 
 dataToCells defaultMkModel info data = 
   Array2D.indexedMap 
     (\i j val ->  
-        (Maybe.map (.mkModel) (Array.get i info) |> Maybe.withDefault defaultMkModel) val
+        (Maybe.map (.mkModel) (Array.get j info) |> Maybe.withDefault defaultMkModel) val
 --  |> appendEmptyRow text (Array.length info)
     ) data
 
