@@ -13,7 +13,7 @@ import Json.Decode as D
 import Json.Encode as E
 
 import AvitoTable as Table
-import AvitoCell as Cell exposing (text, select)
+import AvitoCell as Cell
 
 
 type Msg = 
@@ -127,7 +127,7 @@ view model =
     Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = [ Table.view model.avitoTable |> Html.map AvitoTable ]
+viewAvitoTable model = Table.view model.avitoTable |> List.map (Html.map AvitoTable)
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 

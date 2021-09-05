@@ -5,6 +5,23 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Авито Бот</title>
+
+    <script>
+    function cancel(evt)
+    {
+        evt = ( evt || window.event );
+        key = ( evt.keyCode || evt.charCode || evt.which || 0 );
+        if ( key == 3 || key == 9 || key == 13 )
+        {
+            evt.preventDefault();
+            evt.stopPropagation();
+        }
+    }
+    window.onload = function()
+    {
+        document.body.addEventListener('keypress', cancel, false);
+    }    
+    </script>
 </head>
 <body>
     <div id="app"></div>

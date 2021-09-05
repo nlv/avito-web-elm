@@ -1,24 +1,25 @@
 module AvitoCell exposing (Msg, Model, update, view, text, select, setValue, focusIn, savingFocusOut, cancelingFocusOut)
 
-import Task
-import Browser.Dom exposing (focus, Error)
+import Browser.Dom exposing (Error)
 
-import Html exposing (Html, Attribute, td, input, select)
-import Html.Events exposing (onClick, onInput, on, onBlur, keyCode, onFocus, on)
-import Html.Attributes exposing (id, value, style, autofocus, selected)
+import Html exposing (Html)
+import Html.Events exposing (onInput)
+import Html.Attributes exposing (id, value, style, selected, tabindex)
 
-import Json.Decode as Json
+import Keyboard.Events as KE
+import Keyboard
 
 type Msg = 
       SetValue String
 
     | Input String
-    -- | SetEditable 
     | SetNormal
     | Click
 
     | FocusResult (Result Error ())
-    -- | KeyUp Int
+    
+    | None
+
 
 type Status = Normal | Editable String
 
@@ -31,39 +32,41 @@ type alias Model = {
     , focusId : String -> String
     }
 
--- text : String -> String -> Model
 text : String -> Model
--- text key val0 = let focusId = "cell-editable-input-" ++ key in 
 text val0 = let focusId key = "cell-editable-input-" ++ key in 
   { value = val0
-  -- , key = key
   , status = Normal
-  -- , normal =  -- \val -> td [style "border" "solid 1px black", style "width" "600px", onClick SetEditable] [Html.text val]
-  , normal = \key val -> [
-        input [id (focusId key), value val{-, onInput Input, onKeyUp KeyUp, onBlur SetNormal-}, style "width" "580px", style "border" "none"] []
-    ]    
+  , normal = \_ val -> [Html.span [style "width" "600px"] [Html.text val] ]
   , edit = \key val -> [
-        input [id (focusId key), value val, onInput Input, autofocus True{-, onKeyUp KeyUp-}{-, onBlur SetNormal-}, style "width" "580px", style "border" "none"] []
+        Html.input [id (focusId key), value val, tabindex (-1), onInput Input, style "width" "580px", style "border" "1px blue solid"] []
+
     ]  
   , focusId = focusId
   }
 
 select : List (String, String) -> String -> Model
--- text key val0 = let focusId = "cell-editable-input-" ++ key in 
-select options val0 = let focusId key = "cell-editable-input-" ++ key in 
-  { value = val0
-  -- , key = key
-  , status = Normal
-  , normal = \key val -> [
-        Html.select [id (focusId key), value val, style "width" "580px", style "border" "none"] <|
-          List.map (\(v, n) -> Html.option [value v, selected (if v == val0 then True else False)] [Html.text n]) options
-    ]    
-  , edit = \key val -> [
-        Html.select [id (focusId key), value val, style "width" "580px", style "border" "none", onInput Input] <|
-          List.map (\(v, n) -> Html.option [value v, selected (if v == val0 then True else False)] [Html.text n]) options
-    ]    
-  , focusId = focusId
-  }  
+select options val0 = 
+  let focusId key = "cell-editable-input-" ++ key 
+      tableKeys = 
+        KE.custom 
+          KE.Keydown
+          {preventDefault = True, stopPropagation = True}  
+          [
+            (Keyboard.ArrowRight, None)
+          , (Keyboard.ArrowDown, None)
+          , (Keyboard.ArrowLeft, None)
+          , (Keyboard.ArrowUp, None)
+          ] in
+    { value = val0
+    -- , key = key
+    , status = Normal
+    , normal = \_ val -> [Html.span [style "width" "600px"] [Html.text val] ]  
+    , edit = \key val -> [
+          Html.select [tableKeys, id (focusId key), value val, tabindex (-1), style "width" "580px", style "border" "1px blue solid", onInput Input] <|
+            List.map (\(v, n) -> Html.option [value v, selected (if v == val0 then True else False)] [Html.text n]) options
+      ]    
+    , focusId = focusId
+    }  
 
 setValue : Model -> String -> Model
 setValue model val = {model | value = val}
@@ -85,7 +88,7 @@ cancelingFocusOut model =
         case model.status of
           Normal -> model.value
           Editable str -> str
-  in {model | value = newValue}    
+  in {model | value = newValue, status = Normal}    
 
 update : Msg -> Model -> (Model, Cmd Msg, Bool)
 update action model =
@@ -93,8 +96,6 @@ update action model =
     SetValue val -> (setValue model val, Cmd.none, False)
 
     Input str -> ({ model | value = str}, Cmd.none, False)
-
-    -- SetEditable -> ({ model | status = Editable model.value}, Task.attempt FocusResult (focus model.focusId), False)
 
     SetNormal -> ({ model | status = Normal }, Cmd.none, True)
 
@@ -104,16 +105,7 @@ update action model =
                 Ok _ -> (model, Cmd.none, False)
 
     Click -> (model, Cmd.none, False)
-
-    -- KeyUp 27 -> (calceledModel model, Cmd.none, False)
-    -- KeyUp _ ->  (model, Cmd.none, False)          
-
-calceledModel : Model -> Model
-calceledModel model = 
-      let newValue = case model.status of 
-                        Editable str -> str  
-                        _ -> model.value
-      in { model | status = Normal, value = newValue}
+    None -> (model, Cmd.none, False)
 
 view : String -> Model -> List (Html Msg)
 view key model = 
@@ -121,6 +113,3 @@ view key model =
     Normal       -> model.normal key model.value
     Editable _   -> model.edit key model.value
 
-onKeyUp : (Int -> msg) -> Attribute msg
-onKeyUp tagger =
-  on "keydown" (Json.map tagger keyCode)
