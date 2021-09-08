@@ -1,4 +1,4 @@
-module Utils exposing (appendRow, updateArray2D, insertRow, toArrayOfArrays)
+module Utils exposing (appendRow, appendRows, updateArray2D, insertRow, toArrayOfArrays)
 
 import Array as Array
 import Array2D as Array2D
@@ -21,3 +21,7 @@ appendRow row default data =
     then Array2D.fromArray (Array.fromList [row]) 
     else Array2D.appendRow row default data
 
+appendRows : Int -> Array.Array a -> a -> Array2D.Array2D a -> Array2D.Array2D a
+appendRows n row default data = 
+  if n > 0 then appendRows (n - 1) row default (appendRow row default data)
+  else data

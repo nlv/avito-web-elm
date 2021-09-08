@@ -1,4 +1,4 @@
-module AvitoTable exposing (Msg, Model, update, view, initModel, setData)
+port module AvitoTable exposing (Msg, Model, update, view, initModel, setData, subscriptions)
 
 import List as List
 import Array as Array
@@ -6,8 +6,8 @@ import Array2D as Array2D
 import Utils exposing (..)
 
 import Html exposing (Html, text, table, tr, th, td)
-import Html.Events exposing (onClick, onDoubleClick)
-import Html.Attributes exposing (tabindex, style, autofocus)
+import Html.Events exposing (onClick, onDoubleClick, on)
+import Html.Attributes exposing (tabindex, style, autofocus, attribute)
 import Browser.Dom exposing (focus, Error)
 import Task
 
@@ -16,7 +16,16 @@ import Keyboard.Key as Key exposing (Key(..))
 import Keyboard.Events as KE
 import Keyboard
 
+import Json.Decode as D
+
 import AvitoCell as Cell
+import Array2D exposing (Array2D)
+
+port pasteReceiver : (String -> msg) -> Sub msg
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+  pasteReceiver Paste
 
 type Msg = 
       SetData (Array.Array (Array.Array String))
@@ -32,6 +41,8 @@ type Msg =
     | MoveLeft
     | MoveUp
     | Unfocus
+
+    | Paste String
 
     | CellMsg Int Int Cell.Msg
 
@@ -219,6 +230,21 @@ update action model =
     MoveLeft -> moveFocus Left model
     MoveUp -> moveFocus Up model
 
+    Paste str -> 
+      case model.current of
+          Just (Focused iF jF) -> 
+            let newCells = pasteData str (emptyCellsRow model.cellsInfo) model.cells iF jF
+                newRowsCnt = Array2D.rows newCells
+                newColsCnt = Array2D.columns newCells
+            in ({model | cells = newCells, rowsCnt = newRowsCnt, colsCnt = newColsCnt}, Cmd.none, Nothing)
+          Just (NotFocused iF jF) -> 
+            let newCells = pasteData str (emptyCellsRow model.cellsInfo) model.cells iF jF
+                newRowsCnt = Array2D.rows newCells
+                newColsCnt = Array2D.columns newCells
+                newModel = {model | cells = newCells, rowsCnt = newRowsCnt, colsCnt = newColsCnt}
+            in (newModel, Cmd.none, Just <| getData newModel)
+          Nothing -> (model, Cmd.none, Nothing)
+
     Unfocus -> 
       case model.current of
          Just (Focused iF jF) ->
@@ -235,7 +261,7 @@ update action model =
         Ok _ -> (model, Cmd.none, Nothing)
 
 view : Model -> List (Html.Html Msg)
-view model = [Html.div [tableKeys] <|topButtons model :: avitoTable model :: viewModel model]
+view model = [Html.div [tableKeys, onPaste Paste, attribute "contenteditable" "false"] <|topButtons model :: avitoTable model :: viewModel model]
 
 topButtons : Model -> Html.Html Msg
 topButtons _ = Html.div [] [
@@ -272,6 +298,19 @@ avitoTable model =
         Html.thead [] <| List.map (th []) headP ++ [th [] []]
       , Html.tbody [] (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
     ]
+
+pasteData : String -> Array.Array Cell.Model -> Array2D.Array2D Cell.Model -> Int -> Int -> Array2D.Array2D Cell.Model
+pasteData str default cells iF jF = 
+  let colsCnt = Array2D.columns cells - jF + 1
+      newVals = List.map (\s -> String.split "\t" s |> List.take colsCnt) <| String.lines str
+      newRowsCnt = iF + List.length newVals - Array2D.rows cells - 1
+      newCells = if newRowsCnt > 0 then Utils.appendRows newRowsCnt default (Cell.text "") cells else cells
+      newVals2 = List.map2 (\i row -> List.map2 (\j col -> (col, i, j)) (List.range jF (Array2D.columns cells - 1)) row) (List.range iF (iF + List.length newVals - 2)) newVals |> List.concat
+  in 
+    List.foldr 
+      (\(v, i, j) cs -> updateArray2D i j (\cell -> Cell.setValue cell v) cs)
+      newCells
+      newVals2
 
 
 tableKeys = 
@@ -368,3 +407,9 @@ newFocusIJ move model i j =
           newI = if i == 0 then model.rowsCnt - 1 else i - 1
       in (newI, newJ)      
     
+
+clipboardData : D.Decoder String
+clipboardData = D.field "clipbloardData" D.string
+
+onPaste : (String -> msg) -> Html.Attribute msg
+onPaste msg = on "paste" (D.map msg clipboardData)

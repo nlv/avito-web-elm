@@ -120,7 +120,7 @@ update action model =
     RefreshData -> (model, getData)
 
 main : Program () Model Msg
-main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \_ -> Sub.none }
+main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
 
 view : Model -> Html.Html Msg
 view model = 

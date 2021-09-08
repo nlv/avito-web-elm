@@ -21,6 +21,7 @@
     {
         document.body.addEventListener('keypress', cancel, false);
     }    
+
     </script>
 </head>
 <body>
@@ -28,7 +29,11 @@
     <script src="app.js"></script>
 
     <script>
-        Elm.AvitoApp.init({node: document.getElementById("app")});
+        var app = Elm.AvitoApp.init({node: document.getElementById("app")});
+
+        window.addEventListener('paste', (event) => {
+            app.ports.pasteReceiver.send(event.clipboardData.getData('text'));
+    });        
     </script>
     
 </body>
