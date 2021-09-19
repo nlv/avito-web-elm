@@ -7,7 +7,7 @@ import Utils exposing (..)
 
 import Html exposing (Html, text, table, tr, th, td)
 import Html.Events exposing (onClick, onDoubleClick, on)
-import Html.Attributes exposing (tabindex, style, autofocus, attribute)
+import Html.Attributes exposing (tabindex, style, autofocus, attribute, map)
 import Browser.Dom exposing (focus, Error)
 import Task
 
@@ -20,6 +20,7 @@ import Json.Decode as D
 
 import AvitoCell as Cell
 import Array2D exposing (Array2D)
+import Html exposing (Attribute)
 
 port pasteReceiver : (String -> msg) -> Sub msg
 
@@ -260,16 +261,18 @@ update action model =
         Err _ -> (model, Cmd.none, Nothing)
         Ok _ -> (model, Cmd.none, Nothing)
 
-view : Model -> List (Html.Html Msg)
-view model = [Html.div [tableKeys, onPaste Paste, attribute "contenteditable" "false"] <|topButtons model :: avitoTable model :: viewModel model]
+view : Model -> (Msg -> pmsg) -> Html.Html pmsg -> List (Html.Html pmsg)
+view model t hctl = 
+  let attrs = List.map (Html.Attributes.map t) [tableKeys, onPaste Paste, attribute "contenteditable" "false"] 
+  in [Html.div attrs <| Html.map t (topButtons model) :: avitoTable model t hctl :: viewModel model t hctl]
 
 topButtons : Model -> Html.Html Msg
 topButtons _ = Html.div [] [
                         Html.button [tabindex (-1), onClick DeleteCurrentRow] [text "Удалить"]
                       , Html.button [tabindex (-1), onClick InsertCurrentRow] [text "Добавить"]]
  
-avitoTable : Model -> Html.Html Msg
-avitoTable model = 
+avitoTable : Model -> (Msg -> pmsg) -> Html.Html pmsg -> Html.Html pmsg
+avitoTable model t hctl = 
     let 
         cellsInfoL = Array.toList model.cellsInfo
         headP = List.map (\i -> [text i.name]) cellsInfoL
@@ -294,10 +297,11 @@ avitoTable model =
         rows = List.range 0 ((Array2D.rows model.cells) - 1)
                 |> List.map (\i -> Array2D.getRow i cellsV |> Maybe.withDefault Array.empty |> Array.toList)
     in
-    table [tabindex 1, autofocus True] [      
-        Html.thead [] <| List.map (th []) headP ++ [th [] []]
-      , Html.tbody [] (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
-    ]
+    Html.map t <|
+      table [tabindex 1, autofocus True] [      
+          Html.thead [] <| List.map (th []) headP ++ [th [] []]
+        , Html.tbody [] (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
+      ]
 
 pasteData : String -> Array.Array Cell.Model -> Array2D.Array2D Cell.Model -> Int -> Int -> Array2D.Array2D Cell.Model
 pasteData str default cells iF jF = 
@@ -343,14 +347,14 @@ dataToCells defaultMkModel info data =
         (Maybe.map (.mkModel) (Array.get j info) |> Maybe.withDefault defaultMkModel) val
     ) data
 
-viewModel : Model -> List (Html.Html Msg)
-viewModel model = 
+viewModel : Model -> (Msg -> pmsg) -> Html.Html pmsg -> List (Html.Html pmsg)
+viewModel model t hcontrol = 
   let currentText = 
         case model.current of
            Just (Focused iF jF) -> "Сфокусирована ячейка " ++ String.fromInt iF ++ " " ++ String.fromInt jF
            Just (NotFocused iF jF) -> "Курсована ячейка " ++ String.fromInt iF ++ " " ++ String.fromInt jF
            Nothing -> "Курсовонной ячейки нет"
-  in [ Html.div [] [Html.text currentText]]
+  in List.map (Html.map t) [ Html.div [] [Html.text currentText]]
 
 emptyCellsRow : Array.Array CellInfo -> Array.Array Cell.Model
 emptyCellsRow info = Array.map (\a -> a.mkModel "") info

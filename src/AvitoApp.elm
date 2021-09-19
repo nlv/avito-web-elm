@@ -235,7 +235,7 @@ view model =
     Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = Table.view model.avitoTable |> List.map (Html.map AvitoTable)
+viewAvitoTable model = Table.view model.avitoTable AvitoTable (Html.div [] []) 
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 
