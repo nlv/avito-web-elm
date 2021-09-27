@@ -4,6 +4,7 @@ import Array as Array
 
 import Platform.Cmd as Cmd
 import Html
+import Html.Attributes exposing (value)
 import Html.Events exposing (onClick)
 import Http
 import Browser
@@ -15,6 +16,7 @@ import Json.Decode.Extra exposing (andMap)
 
 import AvitoTable as Table
 import AvitoCell as Cell
+import Html.Events exposing (onInput)
 
 
 type Msg = 
@@ -22,6 +24,10 @@ type Msg =
   | GotInitialData (Result Http.Error (List ForHouse)) 
   | DataPosted (Result Http.Error ())
   | RefreshData
+
+  | RandText Int
+  | InputRandText Int String
+  | GotRandText Int (Result Http.Error (List String)) 
 
 type HttpStatus = Failure String | Loading String | Success
 
@@ -54,6 +60,7 @@ type alias Model = {
   , avitoTable : Table.Model
   -- , data : List FirstRow
   , data : List ForHouse
+  , randText : Array.Array String
   }
 
 initModel : Model
@@ -86,6 +93,7 @@ initModel =
           ) 
           Array.empty
   , data = []
+  ,randText = Array.fromList <| List.map (\_ -> "") <| List.range 0 13
   }
 
 getData : Cmd Msg
@@ -109,6 +117,20 @@ getData = Http.get
                       |> andMap (D.field "_forHouseContactPhone" D.string)
                       |> D.list
                     )
+      }
+
+getRandText : Int -> Int -> String -> Cmd Msg
+getRandText count i str = Http.request
+      { url = "/randtext/"
+      , method = "POST"
+      , headers = [
+                -- Http.header "Content-Type" "application/json;charset=utf-8"
+              -- , Http.header "Referrer Policy" "strict-origin-when-cross-origin"
+            ]
+      , body = Http.jsonBody <| E.object [("text", E.string str), ("count", E.int count)]
+      , expect = Http.expectJson (GotRandText i) (D.string |> D.list)
+      , timeout = Nothing
+      , tracker = Nothing
       }
 
 saveData : List ForHouse -> Cmd Msg
@@ -211,7 +233,7 @@ update action model =
     GotInitialData result ->
       case result of
         Ok rows ->
-          ({ model | httpStatus = Success, data = Debug.log "rows:" rows, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Table.setData model.avitoTable }, Cmd.none)
+          ({ model | httpStatus = Success, data = rows, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Table.setData model.avitoTable }, Cmd.none)
 
         Err err ->
           let e = Debug.log "err:" err in
@@ -227,6 +249,31 @@ update action model =
 
     RefreshData -> (model, getData)
 
+    RandText i -> (model, Maybe.withDefault Cmd.none (Maybe.map (getRandText (List.length model.data) i) (Array.get i model.randText)))
+
+
+    GotRandText i result -> 
+      case result of
+        Ok ts -> 
+          let newData = updateColumn i model.data ts in
+          ({model | data = newData, avitoTable = Array.fromList (List.map forHouseToArray newData) |> Table.setData model.avitoTable}, Cmd.none)
+
+        Err _ -> ({ model | httpStatus = Failure  "Ошибка получения рандомизированного текста"}, Cmd.none)
+   
+    InputRandText i str -> ({model | randText = Array.set i str model.randText}, Cmd.none)
+
+updateColumn : Int -> List ForHouse -> List String -> List ForHouse
+updateColumn i data ts = 
+    let zip2 a b = case (a, b) of
+                    (x::xs, y::ys) -> (x, Just y) :: zip2 xs ys
+                    (x::xs, []) -> (x, Nothing) :: zip2 xs []
+                    ([], _) -> []
+    in
+         zip2 data ts
+      |> List.map (\(a, b) -> (forHouseToArray a, b, a))
+      |> List.map (\(a, b, c) -> (Maybe.withDefault a <| Maybe.map (\x -> Array.set i x a) b, c))
+      |> List.map (\(a, c) -> arrayToForHouse c.id a |> Maybe.withDefault c)
+
 main : Program () Model Msg
 main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
 
@@ -235,7 +282,10 @@ view model =
     Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = Table.view model.avitoTable AvitoTable (Html.div [] []) 
+viewAvitoTable model = Table.view model.avitoTable AvitoTable (hcontrols model)
+
+hcontrols : Model -> Html.Html Msg
+hcontrols model = Html.tr [] <| List.indexedMap (\i v -> Html.td [] [Html.input [onInput (InputRandText i), value v] [], Html.button [Html.Events.onClick (RandText i)] [Html.text "X"]]) (Array.toList model.randText)
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 

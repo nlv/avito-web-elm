@@ -297,10 +297,9 @@ avitoTable model t hctl =
         rows = List.range 0 ((Array2D.rows model.cells) - 1)
                 |> List.map (\i -> Array2D.getRow i cellsV |> Maybe.withDefault Array.empty |> Array.toList)
     in
-    Html.map t <|
-      table [tabindex 1, autofocus True] [      
-          Html.thead [] <| List.map (th []) headP ++ [th [] []]
-        , Html.tbody [] (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
+    table (List.map (Html.Attributes.map t) [tabindex 1, autofocus True]) [
+        Html.map t <| Html.thead [] <| List.map (th []) headP ++ [th [] []]
+      , Html.tbody [] <| hctl :: List.map (Html.map t) (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
       ]
 
 pasteData : String -> Array.Array Cell.Model -> Array2D.Array2D Cell.Model -> Int -> Int -> Array2D.Array2D Cell.Model
