@@ -29,9 +29,8 @@ subscriptions _ =
   pasteReceiver Paste
 
 type Msg = 
-      SetData (Array.Array (Array.Array String))
 
-    | DeleteRow Int
+      DeleteRow Int
     | InsertRow Int
 
     | DeleteCurrentRow
@@ -91,7 +90,7 @@ setData model ds = initModel (Array.map (\i -> (i.name, i.mkModel)) model.cellsI
 update : Msg -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
 update action model =
   case action of
-    SetData ds -> (setData model ds, Cmd.none, Nothing)
+    -- SetData ds -> (setData model ds, Cmd.none, Nothing)
 
     CellClick i j -> 
       let newCells = 
