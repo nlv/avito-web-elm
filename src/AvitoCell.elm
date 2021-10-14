@@ -10,14 +10,7 @@ import Keyboard.Events as KE
 import Keyboard
 
 type Msg = 
-      SetValue String
-
-    | Input String
-    | SetNormal
-    | Click
-
-    | FocusResult (Result Error ())
-    
+      Input String
     | None
 
 
@@ -93,18 +86,8 @@ cancelingFocusOut model =
 update : Msg -> Model -> (Model, Cmd Msg, Bool)
 update action model =
   case action of
-    SetValue val -> (setValue model val, Cmd.none, False)
-
     Input str -> ({ model | value = str}, Cmd.none, False)
 
-    SetNormal -> ({ model | status = Normal }, Cmd.none, True)
-
-    FocusResult result ->
-            case result of
-                Err _ -> (model, Cmd.none, False)
-                Ok _ -> (model, Cmd.none, False)
-
-    Click -> (model, Cmd.none, False)
     None -> (model, Cmd.none, False)
 
 view : String -> Model -> List (Html Msg)
