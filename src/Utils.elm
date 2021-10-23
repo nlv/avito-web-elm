@@ -25,3 +25,4 @@ appendRows : Int -> Array.Array a -> a -> Array2D.Array2D a -> Array2D.Array2D a
 appendRows n row default data = 
   if n > 0 then appendRows (n - 1) row default (appendRow row default data)
   else data
+

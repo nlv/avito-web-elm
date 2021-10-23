@@ -2,6 +2,7 @@ port module AvitoTable exposing (Msg, Model, update, view, initModel, setData, s
 
 import List as List
 import Array as Array
+import Array.Extra as Array
 import Array2D as Array2D
 import Utils exposing (..)
 
@@ -24,7 +25,7 @@ import Html exposing (Attribute)
 
 port pasteReceiver : (String -> msg) -> Sub msg
 
-subscriptions : Model -> Sub Msg
+subscriptions : Model id -> Sub Msg
 subscriptions _ =
   pasteReceiver Paste
 
@@ -59,47 +60,61 @@ type alias CellInfo = {
 
 type CurrentState = Focused Int Int | NotFocused Int Int
 
-type alias Model = {
+type alias Model id = {
       cellsInfo : Array.Array CellInfo
     , cells : Array2D.Array2D Cell.Model
+    , ids : Array.Array (Maybe id)
     , rowsCnt : Int
     , colsCnt : Int
     , current : Maybe CurrentState
     }
 
-initModel : (Array.Array (String, (String -> Cell.Model))) -> Array.Array (Array.Array String) -> Model
+initModel : (Array.Array (String, (String -> Cell.Model))) -> Array.Array (id, (Array.Array String)) -> Model id
 initModel hs ds = 
   let colsCnt = Array.length hs
       cellsInfo  = Array.map (\(name, mkModel) -> {name = name, mkModel = mkModel}) hs
-      ds2 = appendRow (Array.repeat colsCnt "") "" (Array2D.fromArray ds)
+      ds1 = Array.map (\(_,j) -> j) ds
+      ds2 = appendRow (Array.repeat colsCnt "") "" (Array2D.fromArray ds1)
+      ids1 = Array.map (\(i,_) -> Just i) ds
+      ids2 = Array.push Nothing ids1 
   in
   {
     cellsInfo = cellsInfo
   , cells = dataToCells Cell.text cellsInfo ds2 
+  , ids = ids2
   , rowsCnt = Array.length ds + 1
   , colsCnt = colsCnt
   , current = Nothing
   }    
 
-getData : Model -> Array.Array (Array.Array String)
-getData model = Array2D.deleteRow (model.rowsCnt - 1) model.cells |> Array2D.map (.value) |> toArrayOfArrays
+getData : Model id -> Array.Array (Maybe id, (Array.Array String))
+getData model = Array2D.deleteRow (model.rowsCnt - 1) model.cells |> Array2D.map (.value) |> toArrayOfArrays |> Array.zip model.ids
 
-setData : Model -> Array.Array (Array.Array String) -> Model
-setData model ds = initModel (Array.map (\i -> (i.name, i.mkModel)) model.cellsInfo) ds
+setData : Model id -> Array.Array (id, (Array.Array String)) -> Model id
+setData model ds = 
+  let setFocus newModel =
+        case model.current of
+          Just (Focused i j) -> { newModel | cells = newModel.cells |> updateArray2D i j Cell.focusIn, current = model.current }
+          _ -> { newModel | current = model.current }
+  in 
+    initModel (Array.map (\i -> (i.name, i.mkModel)) model.cellsInfo) ds |> setFocus
 
-update : Msg -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
+update : Msg -> Model id -> (Model id, Cmd Msg, Maybe (Array.Array (Maybe id, (Array.Array String))))
 update action model =
   case action of
-    -- SetData ds -> (setData model ds, Cmd.none, Nothing)
-
     CellClick i j -> 
       let newCells = 
             case model.current of
               Just (Focused iF jF) -> model.cells |> updateArray2D iF jF Cell.savingFocusOut 
               _ -> model.cells 
+          updating =  
+            case model.current of
+              Just (Focused _ _) -> Just <| getData newModel
+              Just (NotFocused _ _) -> Nothing
+              Nothing       -> Nothing              
           newTask = Cmd.none    
           newModel = {model | cells = newCells, current = Just (NotFocused i j)}
-      in (newModel, newTask, Just <| getData newModel)      
+      in (newModel, newTask, updating)      
 
     DoubleCellClick i j -> 
       let newCells = 
@@ -107,9 +122,14 @@ update action model =
               Just (Focused iF jF) -> model.cells |> updateArray2D iF jF Cell.savingFocusOut |> updateArray2D i j Cell.focusIn
               Just (NotFocused _ _) -> model.cells |> updateArray2D i j Cell.focusIn
               Nothing       -> model.cells |> updateArray2D i j Cell.focusIn
+          updating =  
+            case model.current of
+              Just (Focused _ _) -> Just <| getData newModel
+              Just (NotFocused _ _) -> Nothing
+              Nothing       -> Nothing
           newTask = Maybe.map (\c -> Task.attempt FocusResult <| focus (c.focusId (mkCellKey i j))) (Array2D.get i j newCells) |> Maybe.withDefault Cmd.none    
           newModel = {model | cells = newCells, current = Just (Focused i j)}
-      in (newModel,  newTask, Just <| getData newModel)      
+      in (newModel,  newTask, updating)      
 
     CellMsg i j msg -> 
       let res = Maybe.map (Cell.update msg) (Array2D.get i j model.cells)
@@ -134,12 +154,13 @@ update action model =
 
     InsertRow i -> 
       let newCells = insertRow i model.cells (emptyCellsRow model.cellsInfo)
+          newIds = Array.insertAt i Nothing model.ids 
           newcurrent = 
             case model.current of
                Just (Focused iF jF) -> if iF == i then Just (Focused (iF + 1) jF) else Just (Focused iF jF)
                Just (NotFocused iF jF) -> if iF == i then Just (NotFocused (iF + 1) jF) else Just (NotFocused iF jF)
                Nothing       -> Nothing
-          newModel = {model | cells = newCells, rowsCnt = model.rowsCnt + 1, current = newcurrent}
+          newModel = {model | cells = newCells, ids = newIds, rowsCnt = model.rowsCnt + 1, current = newcurrent}
           newTask = 
             case newcurrent of
               Just (Focused iF jF) -> Maybe.map (\c -> Task.attempt FocusResult <| focus (c.focusId (mkCellKey iF jF))) (Array2D.get iF jF newCells) |> Maybe.withDefault Cmd.none    
@@ -151,29 +172,32 @@ update action model =
       case model.current of
         Just (Focused iF jF) -> 
             let newCells = insertRow iF model.cells (emptyCellsRow model.cellsInfo)
+                newIds = Array.insertAt iF Nothing model.ids
                 (newIF, newJF) = (iF, jF)
-                newModel = {model | cells = newCells, rowsCnt = model.rowsCnt + 1, current = Just (Focused newIF newJF)}
+                newModel = {model | cells = newCells, ids = newIds, rowsCnt = model.rowsCnt + 1, current = Just (Focused newIF newJF)}
                 newTask = Maybe.map (\c -> Task.attempt FocusResult <| focus (c.focusId (mkCellKey newIF newJF))) (Array2D.get newIF newJF newCells) |> Maybe.withDefault Cmd.none    
             in
               (newModel, newTask, Just <| getData newModel)      
         Just (NotFocused iF jF) -> 
             let newCells = insertRow iF model.cells (emptyCellsRow model.cellsInfo)
+                newIds = Array.insertAt iF Nothing model.ids
                 (newIF, newJF) = (iF + 1, jF) 
-                newModel = {model | cells = newCells, rowsCnt = model.rowsCnt + 1, current = Just (NotFocused newIF newJF)}
+                newModel = {model | cells = newCells, ids = newIds, rowsCnt = model.rowsCnt + 1, current = Just (NotFocused newIF newJF)}
             in
-              (newModel, Cmd.none, Nothing)
-        Nothing -> (model, Cmd.none, Nothing)
+              (newModel, Cmd.none,  Just <| getData newModel)
+        Nothing -> (model, Cmd.none,  Nothing)
 
     DeleteRow i -> 
       if i == model.rowsCnt - 1 then
         (model, Cmd.none, Nothing)
       else
         let newCells = Array2D.deleteRow i model.cells
+            newIds = Array.removeAt i model.ids
             newCells2 = 
               case model.current of
                 Just (Focused iF jF) -> if iF == i then newCells |> updateArray2D iF jF Cell.focusIn else newCells
                 _             -> newCells
-            newModel = {model | cells = newCells2, rowsCnt = model.rowsCnt - 1}
+            newModel = {model | cells = newCells2, ids = newIds, rowsCnt = model.rowsCnt - 1}
             newTask = 
               case model.current of
                 Just (Focused iF jF) -> Maybe.map (\c -> Task.attempt FocusResult <| focus (c.focusId (mkCellKey iF jF))) (Array2D.get iF jF newCells) |> Maybe.withDefault Cmd.none    
@@ -189,7 +213,8 @@ update action model =
           else
             let newCells = Array2D.deleteRow iF model.cells
                 newCells2 = newCells |> updateArray2D iF jF Cell.focusIn
-                newModel = {model | cells = newCells2, rowsCnt = model.rowsCnt - 1}
+                newIds = Array.removeAt iF model.ids
+                newModel = {model | cells = newCells2, ids = newIds, rowsCnt = model.rowsCnt - 1}
                 newTask = 
                   Maybe.map (\c -> Task.attempt FocusResult <| focus (c.focusId (mkCellKey iF jF))) (Array2D.get iF jF newCells) |> Maybe.withDefault Cmd.none    
             in
@@ -199,7 +224,8 @@ update action model =
           then (model, Cmd.none, Nothing)
           else
             let newCells = Array2D.deleteRow iF model.cells
-                newModel = {model | cells = newCells, rowsCnt = model.rowsCnt - 1}
+                newIds = Array.removeAt iF model.ids
+                newModel = {model | cells = newCells, ids = newIds, rowsCnt = model.rowsCnt - 1}
             in
               (newModel, Cmd.none, Just <| getData newModel)              
 
@@ -260,21 +286,21 @@ update action model =
         Err _ -> (model, Cmd.none, Nothing)
         Ok _ -> (model, Cmd.none, Nothing)
 
-view : Model -> (Msg -> pmsg) -> Html.Html pmsg -> List (Html.Html pmsg)
-view model t hctl = 
+view : Model id -> (Msg -> pmsg) -> Html.Html pmsg -> (List (Html.Html pmsg) -> List (Html.Html pmsg)) -> (Int -> List (Html.Html pmsg) -> List (Html.Html pmsg)) -> List (Html.Html pmsg)
+view model t hctl throw trow = 
   let attrs = List.map (Html.Attributes.map t) [tableKeys, onPaste Paste, attribute "contenteditable" "false"] 
-  in [Html.div attrs <| Html.map t (topButtons model) :: avitoTable model t hctl :: viewModel model t hctl]
+  in [Html.div attrs <| Html.map t (topButtons model) :: avitoTable model t hctl throw trow :: viewModel model t hctl]
 
-topButtons : Model -> Html.Html Msg
+topButtons : Model id -> Html.Html Msg
 topButtons _ = Html.div [] [
                         Html.button [tabindex (-1), onClick DeleteCurrentRow] [text "Удалить"]
                       , Html.button [tabindex (-1), onClick InsertCurrentRow] [text "Добавить"]]
  
-avitoTable : Model -> (Msg -> pmsg) -> Html.Html pmsg -> Html.Html pmsg
-avitoTable model t hctl = 
+avitoTable : Model id -> (Msg -> pmsg) -> Html.Html pmsg -> (List (Html.Html pmsg) -> List (Html.Html pmsg)) -> (Int -> List (Html.Html pmsg) -> List (Html.Html pmsg)) -> Html.Html pmsg
+avitoTable model t hctl throw trow = 
     let 
         cellsInfoL = Array.toList model.cellsInfo
-        headP = List.map (\i -> [text i.name]) cellsInfoL
+        headP = List.map (\i -> [text i.name]) cellsInfoL -- |> List.map (Html.map t) |> throw
 
         cellsV = 
           Array2D.indexedMap 
@@ -297,8 +323,10 @@ avitoTable model t hctl =
                 |> List.map (\i -> Array2D.getRow i cellsV |> Maybe.withDefault Array.empty |> Array.toList)
     in
     table (List.map (Html.Attributes.map t) [tabindex 1, autofocus True]) [
-        Html.map t <| Html.thead [] <| List.map (th []) headP ++ [th [] []]
-      , Html.tbody [] <| hctl :: List.map (Html.map t) (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
+        -- Html.map t <| Html.thead [] <| List.map (th []) headP ++ [th [] []]
+        (List.map (th []) headP) ++ [th [] []] |> List.map (Html.map t) |> throw |>  Html.thead [] 
+      -- , Html.tbody [] <| hctl :: List.map (Html.map t) (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i else avitoRow i) (rows))
+      , Html.tbody [] <| hctl :: (List.indexedMap (\i -> if i + 1 == List.length rows then avitoLastRow i t trow else avitoRow i t trow) (rows))      
       ]
 
 pasteData : String -> Array.Array Cell.Model -> Array2D.Array2D Cell.Model -> Int -> Int -> Array2D.Array2D Cell.Model
@@ -329,14 +357,16 @@ tableKeys =
     , (Keyboard.Escape, Unfocus)    
     ]   
 
-avitoRow : Int -> List (Html Msg) -> Html Msg
-avitoRow _ rowV = 
+avitoRow : Int -> (Msg -> pmsg) -> (Int -> List (Html.Html pmsg) -> List (Html.Html pmsg)) -> List (Html Msg) -> Html pmsg
+avitoRow i t trow rowV = 
   tr 
     [style "height" "1.5em"] 
-    rowV
+    (trow i (List.map (Html.map t) rowV))
 
-avitoLastRow : Int -> List (Html.Html Msg) -> Html.Html Msg
-avitoLastRow _ rowV = Html.tr [style "height" "1.5em"] rowV
+
+avitoLastRow : Int -> (Msg -> pmsg) -> (Int -> List (Html.Html pmsg) -> List (Html.Html pmsg)) -> List (Html.Html Msg) -> Html.Html pmsg
+avitoLastRow i t trow rowV = 
+  tr [style "height" "1.5em"] (trow i (List.map (Html.map t) rowV))
 
 dataToCells : (String -> Cell.Model) -> Array.Array CellInfo -> Array2D.Array2D String -> Array2D.Array2D Cell.Model
 dataToCells defaultMkModel info data = 
@@ -345,7 +375,7 @@ dataToCells defaultMkModel info data =
         (Maybe.map (.mkModel) (Array.get j info) |> Maybe.withDefault defaultMkModel) val
     ) data
 
-viewModel : Model -> (Msg -> pmsg) -> Html.Html pmsg -> List (Html.Html pmsg)
+viewModel : Model id -> (Msg -> pmsg) -> Html.Html pmsg -> List (Html.Html pmsg)
 viewModel model t hcontrol = 
   let currentText = 
         case model.current of
@@ -365,17 +395,14 @@ mkCellKey i j = (String.fromInt i)  ++ "-" ++ (String.fromInt j)
 
 type MoveFocus = Up | Right | Down | Left
 
-moveFocus : MoveFocus -> Model -> (Model, Cmd Msg, Maybe (Array.Array (Array.Array String)))
+moveFocus : MoveFocus -> Model id -> (Model id, Cmd Msg, Maybe (Array.Array (Maybe id, (Array.Array String))))
 moveFocus move model = 
       case model.current of
         Just (NotFocused iF jF) -> 
           let (newIF, newJF) = newFocusIJ move model iF jF
-              newcurrent = Just (NotFocused newIF newJF)
-              newCells = model.cells
-              newTask = Cmd.none              
-              newModel = {model | cells = newCells, current = newcurrent}
+              newModel = {model | current = Just (NotFocused newIF newJF)}
           in
-          (newModel, newTask, Nothing)
+          (newModel, Cmd.none, Nothing)
         Just (Focused iF jF) -> 
           let (newIF, newJF) = newFocusIJ move model iF jF
               newcurrent = Just (Focused newIF newJF)
@@ -386,7 +413,7 @@ moveFocus move model =
           (newModel, newTask, Just <| getData newModel)          
         _ -> (model, Cmd.none, Nothing)
 
-newFocusIJ : MoveFocus -> Model -> Int -> Int -> (Int, Int)
+newFocusIJ : MoveFocus -> Model id -> Int -> Int -> (Int, Int)
 newFocusIJ move model i j = 
   case move of
     Right -> 

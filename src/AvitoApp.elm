@@ -1,6 +1,7 @@
 module AvitoApp exposing (main)
 
 import Array as Array
+import List exposing (foldr)
 
 import Platform.Cmd as Cmd
 import Html
@@ -9,6 +10,7 @@ import Html.Events exposing (onClick)
 import Http
 import Browser
 import Maybe.Extra as Maybe
+import Array.Extra as Array
 
 import Json.Decode as D
 import Json.Encode as E
@@ -18,16 +20,23 @@ import AvitoTable as Table
 import AvitoCell as Cell
 import Html.Events exposing (onInput)
 
+import UUID
+import Random
+import Procedure
+import Procedure.Program
+
 
 type Msg = 
     AvitoTable Table.Msg 
   | GotInitialData (Result Http.Error (List ForHouse)) 
-  | DataPosted (Result Http.Error ())
+  | DataPosted (Result Http.Error (List ForHouse))
   | RefreshData
 
   | RandText Int
   | InputRandText Int String
   | GotRandText Int (Result Http.Error (List String)) 
+
+  | ProcedureMsg (Procedure.Program.Msg Msg)
 
 type HttpStatus = Failure String | Loading String | Success
 
@@ -40,12 +49,13 @@ type HttpStatus = Failure String | Loading String | Success
 
 type alias ForHouse = {
     id           : Int
+  , oid          : String
   , category     : String
   , goodsType    : String
   , title        : String
   , description  : String
   , price        : String
-  , imageNames   : String
+  -- , imageNames   : String
   , videoUrl     : String
   , addrRegion   : String
   , addrCity     : String
@@ -57,10 +67,12 @@ type alias ForHouse = {
 
 type alias Model = {
     httpStatus : HttpStatus 
-  , avitoTable : Table.Model
+  , avitoTable : Table.Model String
   -- , data : List FirstRow
-  , data : List ForHouse
+  , data : Array.Array ForHouse
   , randText : Array.Array String
+
+  , procModel: Procedure.Program.Model Msg
   }
 
 initModel : Model
@@ -81,7 +93,6 @@ initModel =
             , ("Заголовок", Cell.text)
             , ("Описание", Cell.text)
             , ("Цена", Cell.text)
-            , ("Папка с фотографиями", Cell.text)
             , ("Ссылка на видео", Cell.text)
             , ("Регион РФ", Cell.select regions)
             , ("Город", Cell.select cities)
@@ -92,22 +103,23 @@ initModel =
             ]
           ) 
           Array.empty
-  , data = []
-  ,randText = Array.fromList <| List.map (\_ -> "") <| List.range 0 13
+  , data = Array.fromList []
+  , randText = Array.fromList <| List.map (\_ -> "") <| List.range 0 11
+
+  , procModel = Procedure.Program.init
   }
 
-getData : Cmd Msg
-getData = Http.get
-      { url = "http://localhost:3030/data/for_house"
-      , expect = Http.expectJson GotInitialData (
+decodeForHousesList : D.Decoder (List ForHouse)
+decodeForHousesList = 
                     D.succeed ForHouse
                       |> andMap (D.field "_forHouseId" D.int)
+                      |> andMap (D.field "_forHouseOid" D.string)
                       |> andMap (D.field "_forHouseCategory" D.string)
                       |> andMap (D.field "_forHouseGoodsType" D.string)
                       |> andMap (D.field "_forHouseTitle" D.string)
                       |> andMap (D.field "_forHouseDescription" D.string)
                       |> andMap (D.field "_forHousePrice" D.string)
-                      |> andMap (D.field "_forHouseImageNames" D.string)
+                      -- |> andMap (D.field "_forHouseImageNames" D.string)
                       |> andMap (D.field "_forHouseVideoUrl" D.string)
                       |> andMap (D.field "_forHouseAddrRegion" D.string)
                       |> andMap (D.field "_forHouseAddrCity" D.string)
@@ -116,7 +128,11 @@ getData = Http.get
                       |> andMap (D.field "_forHouseAddrHouse" D.string)
                       |> andMap (D.field "_forHouseContactPhone" D.string)
                       |> D.list
-                    )
+
+getData : Cmd Msg
+getData = Http.get
+      { url = "http://localhost:3030/data/for_house"
+      , expect = Http.expectJson GotInitialData decodeForHousesList
       }
 
 getRandText : Int -> Int -> String -> Cmd Msg
@@ -133,17 +149,47 @@ getRandText count i str = Http.request
       , tracker = Nothing
       }
 
+type alias GLS = Random.Generator (List String)
+
 saveData : List ForHouse -> Cmd Msg
 saveData data = 
-      Http.post 
-        { url = "http://localhost:3030/data/for_house"
-        , body = E.list forHouseToValue data |>  Http.jsonBody 
-        , expect = Http.expectWhatever DataPosted
-        }
+      let goid oid = 
+            if oid == ""
+              then UUID.generator |> Random.map (UUID.toRepresentation UUID.Compact)
+              else Random.constant oid
+          goids = data |> List.map .oid |> List.map goid 
+          o : (Random.Generator String) -> GLS -> GLS
+          o g gs = g |> Random.andThen (\u -> o3 u gs)
+          o3 : String -> GLS -> GLS
+          o3 u gs = gs |> Random.andThen (\us -> Random.constant (u :: us))
+          gls : List (Random.Generator String) -> GLS
+          gls gs = foldr o (Random.constant []) gs
+          data2 : Random.Generator (List ForHouse)
+          data2 = Random.map (\hs -> List.map2 (\s h -> {h | oid = s}) hs data) (gls goids)
+      in
+      Procedure.fetch (\tagger -> Random.generate tagger data2)
+      |> Procedure.andThen (
+          \data3 ->
+            Procedure.fetchResult 
+              (\tagger -> 
+                Http.post 
+                  { url = "http://localhost:3030/data/for_house"
+                  , body = E.list forHouseToValue data3 |>  Http.jsonBody 
+                  , expect = Http.expectJson tagger decodeForHousesList
+                  }
+              )
+      ) |> Procedure.try ProcedureMsg DataPosted
 
--- arrayToForHouse : Int -> Array.Array String -> Maybe ForHouse
-arrayToForHouse id ds =
-  Just (ForHouse id)
+          -- Http.post 
+          --   { url = "http://localhost:3030/data/for_house"
+          --   , body = E.list forHouseToValue data |>  Http.jsonBody 
+          --   , expect = Http.expectWhatever DataPosted
+          --   }
+
+
+arrayToForHouse : Int -> Maybe String -> Array.Array String -> Maybe ForHouse
+arrayToForHouse id oid ds =
+  Just (ForHouse id (oid |> Maybe.withDefault ""))
     |> Maybe.andMap (Array.get 0 ds)
     |> Maybe.andMap (Array.get 1 ds)
     |> Maybe.andMap (Array.get 2 ds)
@@ -156,7 +202,7 @@ arrayToForHouse id ds =
     |> Maybe.andMap (Array.get 9 ds)
     |> Maybe.andMap (Array.get 10 ds)
     |> Maybe.andMap (Array.get 11 ds)
-    |> Maybe.andMap (Array.get 12 ds)
+    -- |> Maybe.andMap (Array.get 12 ds)
    
 
 -- arrayToFirstRow : Int -> Array.Array String -> Maybe FirstRow
@@ -171,7 +217,7 @@ forHouseToArray row =
       , row.title
       , row.description
       , row.price
-      , row.imageNames
+      -- , row.imageNames
       , row.videoUrl
       , row.addrRegion
       , row.addrCity
@@ -197,12 +243,13 @@ forHouseToValue : ForHouse -> E.Value
 forHouseToValue row = 
   E.object [
       ("_forHouseId", E.int row.id)
+    , ("_forHouseOid", E.string row.oid)      
     , ("_forHouseCategory", E.string row.category)
     , ("_forHouseGoodsType", E.string row.goodsType)
     , ("_forHouseTitle", E.string row.title)
     , ("_forHouseDescription", E.string row.description)
     , ("_forHousePrice", E.string row.price)
-    , ("_forHouseImageNames", E.string row.imageNames)
+    -- , ("_forHouseImageNames", E.string row.imageNames)
     , ("_forHouseVideoUrl", E.string row.videoUrl)
     , ("_forHouseAddrRegion", E.string row.addrRegion)
     , ("_forHouseAddrCity", E.string row.addrCity)
@@ -218,14 +265,15 @@ update action model =
     AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
                       case i of
                         Just ds -> 
-                            let newData = Array.indexedMap arrayToForHouse ds |> Array.toList |> Maybe.combine |> Maybe.withDefault model.data
+
+                            let newData = Array.indexedMap (\j (id, a) -> arrayToForHouse j id a) ds |> Array.toList |> Maybe.combine |> Maybe.map Array.fromList |> Maybe.withDefault model.data
                             in  (
                                 { model | 
                                     avitoTable = t
                                   , data = newData
                                   , httpStatus = Loading "Сохраняем данные"
                                 }
-                                , Cmd.batch [Cmd.map AvitoTable cmd, saveData newData]
+                                , Cmd.batch [Cmd.map AvitoTable cmd, Array.toList newData |> saveData ]
                                 )
                         Nothing -> ({model | avitoTable = t}, Cmd.map AvitoTable cmd)
 
@@ -233,34 +281,40 @@ update action model =
     GotInitialData result ->
       case result of
         Ok rows ->
-          ({ model | httpStatus = Success, data = rows, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Table.setData model.avitoTable }, Cmd.none)
+          let data = Array.fromList rows 
+          in
+          ({ model | httpStatus = Success, data = data, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData model.avitoTable }, Cmd.none)
 
-        Err err ->
-          let e = Debug.log "err:" err in
-          ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
+        Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
 
     DataPosted result ->
       case result of
-        Ok _ ->
-          ({ model | httpStatus = Success}, Cmd.none)
+        Ok rows ->
+          -- ({ model | httpStatus = Success}, Cmd.none)
+
+          let data = Array.fromList rows 
+          in
+          ({ model | httpStatus = Success, data = data, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData model.avitoTable }, Cmd.none)
 
         Err _ ->
           ({ model | httpStatus = Failure  "Ошибка сохраннения данных"}, Cmd.none)
 
     RefreshData -> (model, getData)
 
-    RandText i -> (model, Maybe.withDefault Cmd.none (Maybe.map (getRandText (List.length model.data) i) (Array.get i model.randText)))
+    RandText i -> (model, Maybe.withDefault Cmd.none (Maybe.map (getRandText (Array.length model.data) i) (Array.get i model.randText)))
 
 
     GotRandText i result -> 
       case result of
         Ok ts -> 
-          let newData = updateColumn i model.data ts in
-          ({model | data = newData, avitoTable = Array.fromList (List.map forHouseToArray newData) |> Table.setData model.avitoTable}, Cmd.none)
+          let newData = updateColumn i (Array.toList model.data) ts in
+          ({model | data = Array.fromList newData, avitoTable = Array.fromList (List.map forHouseToArray newData) |> Array.zip (Array.map .oid model.data) |> Table.setData model.avitoTable}, saveData newData)
 
         Err _ -> ({ model | httpStatus = Failure  "Ошибка получения рандомизированного текста"}, Cmd.none)
    
     InputRandText i str -> ({model | randText = Array.set i str model.randText}, Cmd.none)
+
+    ProcedureMsg procMsg -> Procedure.Program.update procMsg model.procModel |> Tuple.mapFirst (\updated -> { model | procModel = updated } )     
 
 updateColumn : Int -> List ForHouse -> List String -> List ForHouse
 updateColumn i data ts = 
@@ -272,7 +326,7 @@ updateColumn i data ts =
          zip2 data ts
       |> List.map (\(a, b) -> (forHouseToArray a, b, a))
       |> List.map (\(a, b, c) -> (Maybe.withDefault a <| Maybe.map (\x -> Array.set i x a) b, c))
-      |> List.map (\(a, c) -> arrayToForHouse c.id a |> Maybe.withDefault c)
+      |> List.map (\(a, c) -> arrayToForHouse c.id (Just c.oid) a |> Maybe.withDefault c)
 
 main : Program () Model Msg
 main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
@@ -282,10 +336,10 @@ view model =
     Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = Table.view model.avitoTable AvitoTable (hcontrols model)
+viewAvitoTable model = Table.view model.avitoTable AvitoTable (hcontrols model) viewTableHRow (viewTableRow model) 
 
 hcontrols : Model -> Html.Html Msg
-hcontrols model = Html.tr [] <| List.indexedMap (\i v -> Html.td [] [Html.input [onInput (InputRandText i), value v] [], Html.button [Html.Events.onClick (RandText i)] [Html.text "X"]]) (Array.toList model.randText)
+hcontrols model = Html.tr [] <| Html.td [] [] :: List.indexedMap (\i v -> Html.td [] [Html.input [onInput (InputRandText i), value v] [], Html.button [Html.Events.onClick (RandText i)] [Html.text "X"]]) (Array.toList model.randText)
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 
@@ -294,13 +348,16 @@ viewHttpStatus status =
     Loading s -> [Html.text s]
     Failure s -> [Html.text s, refreshButton]
 
+viewTableRow : Model -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
+viewTableRow model i v = 
+  let w = Array.get i model.data |> Maybe.map .oid |> Maybe.map (\oid -> Html.td [] [Html.text oid]) |> Maybe.withDefault (Html.td [] [Html.text ""])
+  in w :: v
+
+viewTableHRow : List (Html.Html Msg) -> List (Html.Html Msg)
+viewTableHRow v = (Html.td [] [Html.text ""]) :: v  
+
+  
+
 refreshButton : Html.Html Msg
 refreshButton = Html.button [onClick RefreshData] [Html.text "Обновить"]    
 
--- apply : D.Decoder (a -> b) -> D.Decoder a -> D.Decoder b
--- apply f aDecoder =
---   D.andThen f (\f2 -> D.map aDecoder f2) 
-
--- apply : Decoder (a -> b) -> Decoder a -> Decoder b
--- apply f aDecoder =
--- f `andThen` (\f' -> f' `map` aDecoder)
