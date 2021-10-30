@@ -70,7 +70,7 @@ type alias Model = {
   , avitoTable : Table.Model String
   -- , data : List FirstRow
   , data : Array.Array ForHouse
-  , randText : Array.Array String
+  , randText : Array.Array (Maybe String)
 
   , procModel: Procedure.Program.Model Msg
   }
@@ -104,7 +104,7 @@ initModel =
           ) 
           Array.empty
   , data = Array.fromList []
-  , randText = Array.fromList <| List.map (\_ -> "") <| List.range 0 11
+  , randText = Array.fromList [Nothing, Nothing, Just "", Just "", Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing]
 
   , procModel = Procedure.Program.init
   }
@@ -301,7 +301,16 @@ update action model =
 
     RefreshData -> (model, getData)
 
-    RandText i -> (model, Maybe.withDefault Cmd.none (Maybe.map (getRandText (Array.length model.data) i) (Array.get i model.randText)))
+    RandText i -> (
+          model 
+        , Array.get i model.randText
+            |> Maybe.andThen (Maybe.map <| getRandText (Array.length model.data) i)
+            |> Maybe.withDefault Cmd.none
+        )
+
+    
+    
+    -- Maybe.withDefault Cmd.none (Maybe.map (getRandText (Array.length model.data) i) (Array.get i model.randText)))
 
 
     GotRandText i result -> 
@@ -312,7 +321,7 @@ update action model =
 
         Err _ -> ({ model | httpStatus = Failure  "Ошибка получения рандомизированного текста"}, Cmd.none)
    
-    InputRandText i str -> ({model | randText = Array.set i str model.randText}, Cmd.none)
+    InputRandText i str -> ({model | randText = Array.update i (Maybe.map (\_ -> str)) model.randText}, Cmd.none)
 
     ProcedureMsg procMsg -> Procedure.Program.update procMsg model.procModel |> Tuple.mapFirst (\updated -> { model | procModel = updated } )     
 
@@ -339,7 +348,22 @@ viewAvitoTable : Model -> List (Html.Html Msg)
 viewAvitoTable model = Table.view model.avitoTable AvitoTable (hcontrols model) viewTableHRow (viewTableRow model) 
 
 hcontrols : Model -> Html.Html Msg
-hcontrols model = Html.tr [] <| Html.td [] [] :: List.indexedMap (\i v -> Html.td [] [Html.input [onInput (InputRandText i), value v] [], Html.button [Html.Events.onClick (RandText i)] [Html.text "X"]]) (Array.toList model.randText)
+hcontrols model = 
+  Html.tr [] 
+    <| Html.td [] [] 
+        :: (Array.toList 
+            <|Array.indexedMap 
+              (\i v -> Maybe.map 
+                        (\w -> Html.td 
+                          [] 
+                          [
+                            Html.input [onInput (InputRandText i), value w] []
+                          , Html.button [Html.Events.onClick (RandText i)] [Html.text "X"]]
+                        ) v 
+                        |> Maybe.withDefault (Html.td [] [])
+              ) 
+              model.randText
+             ) 
 
 viewHttpStatus : HttpStatus -> List (Html.Html Msg)
 viewHttpStatus status = 
