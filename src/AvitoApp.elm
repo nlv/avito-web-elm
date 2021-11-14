@@ -55,7 +55,7 @@ type alias ForHouse = {
   , title        : String
   , description  : String
   , price        : String
-  -- , imageNames   : String
+  , imageUrl     : List String
   , videoUrl     : String
   , addrRegion   : String
   , addrCity     : String
@@ -119,7 +119,7 @@ decodeForHousesList =
                       |> andMap (D.field "_forHouseTitle" D.string)
                       |> andMap (D.field "_forHouseDescription" D.string)
                       |> andMap (D.field "_forHousePrice" D.string)
-                      -- |> andMap (D.field "_forHouseImageNames" D.string)
+                      |> andMap (D.field "_forHouseImageUrl" (D.list D.string))
                       |> andMap (D.field "_forHouseVideoUrl" D.string)
                       |> andMap (D.field "_forHouseAddrRegion" D.string)
                       |> andMap (D.field "_forHouseAddrCity" D.string)
@@ -195,6 +195,7 @@ arrayToForHouse id oid ds =
     |> Maybe.andMap (Array.get 2 ds)
     |> Maybe.andMap (Array.get 3 ds)
     |> Maybe.andMap (Array.get 4 ds)
+    |> Maybe.andMap (Just [])
     |> Maybe.andMap (Array.get 5 ds)
     |> Maybe.andMap (Array.get 6 ds)
     |> Maybe.andMap (Array.get 7 ds)
@@ -249,7 +250,7 @@ forHouseToValue row =
     , ("_forHouseTitle", E.string row.title)
     , ("_forHouseDescription", E.string row.description)
     , ("_forHousePrice", E.string row.price)
-    -- , ("_forHouseImageNames", E.string row.imageNames)
+    , ("_forHouseImageUrl", E.list E.string row.imageUrl)
     , ("_forHouseVideoUrl", E.string row.videoUrl)
     , ("_forHouseAddrRegion", E.string row.addrRegion)
     , ("_forHouseAddrCity", E.string row.addrCity)
@@ -279,7 +280,7 @@ update action model =
 
 
     GotInitialData result ->
-      case result of
+      case result |> Debug.log "result" of
         Ok rows ->
           let data = Array.fromList rows 
           in
