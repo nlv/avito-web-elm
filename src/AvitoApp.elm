@@ -5,7 +5,7 @@ import List exposing (foldr)
 
 import Platform.Cmd as Cmd
 import Html
-import Html.Attributes exposing (value)
+import Html.Attributes exposing (value, src, height)
 import Html.Events exposing (onClick)
 import Http
 import Browser
@@ -24,6 +24,7 @@ import UUID
 import Random
 import Procedure
 import Procedure.Program
+import Html exposing (Attribute)
 
 
 type Msg = 
@@ -375,7 +376,9 @@ viewHttpStatus status =
 
 viewTableRow : Model -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
 viewTableRow model i v = 
-  let w = Array.get i model.data |> Maybe.map .oid |> Maybe.map (\oid -> Html.td [] [Html.text oid]) |> Maybe.withDefault (Html.td [] [Html.text ""])
+  let w = Array.get i model.data |> Maybe.map ww |> Maybe.withDefault (Html.td [] [Html.text ""])
+      ww d = Html.td [] (List.map (\u -> Html.img [src u, height 50] []) d.imageUrl)
+
   in w :: v
 
 viewTableHRow : List (Html.Html Msg) -> List (Html.Html Msg)
