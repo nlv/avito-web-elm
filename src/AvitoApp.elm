@@ -5,8 +5,8 @@ import List exposing (foldr)
 
 import Platform.Cmd as Cmd
 import Html
-import Html.Attributes exposing (value, src, height)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (value, src, height, enctype, value, type_, multiple)
+import Html.Events exposing (onClick, on)
 import Http
 import Browser
 import Maybe.Extra as Maybe
@@ -15,6 +15,8 @@ import Array.Extra as Array
 import Json.Decode as D
 import Json.Encode as E
 import Json.Decode.Extra exposing (andMap)
+
+import File exposing (File)
 
 import AvitoTable as Table
 import AvitoCell as Cell
@@ -25,6 +27,7 @@ import Random
 import Procedure
 import Procedure.Program
 import Html exposing (Attribute)
+import Html.Attributes exposing (name)
 
 
 type Msg = 
@@ -38,6 +41,10 @@ type Msg =
   | GotRandText Int (Result Http.Error (List String)) 
 
   | ProcedureMsg (Procedure.Program.Msg Msg)
+
+  | GotImage String (Maybe File)
+  | UploadedImage (Result Http.Error ())
+
 
 type HttpStatus = Failure String | Loading String | Success
 
@@ -75,6 +82,18 @@ type alias Model = {
 
   , procModel: Procedure.Program.Model Msg
   }
+
+uploadImage : String -> File.File -> Cmd Msg
+uploadImage bucket file =
+  Http.request
+    { method = "POST"
+    , headers = []
+    , url = "http://localhost:3030/images/" ++ bucket
+    , body = Http.multipartBody [ Http.filePart "image" file ]
+    , expect = Http.expectWhatever UploadedImage
+    , timeout = Nothing
+    , tracker = Nothing
+    }  
 
 initModel : Model
 initModel = 
@@ -327,6 +346,15 @@ update action model =
 
     ProcedureMsg procMsg -> Procedure.Program.update procMsg model.procModel |> Tuple.mapFirst (\updated -> { model | procModel = updated } )     
 
+    GotImage bucket (Just file) -> (model, uploadImage bucket file)
+
+    GotImage _ Nothing -> (model, Cmd.none)
+
+    UploadedImage result ->
+      case result of 
+        Ok _ -> (model, getData)
+        Err _ ->  ({ model | httpStatus = Failure "Ошибка загрузки картинки"}, Cmd.none)
+
 updateColumn : Int -> List ForHouse -> List String -> List ForHouse
 updateColumn i data ts = 
     let zip2 a b = case (a, b) of
@@ -377,8 +405,15 @@ viewHttpStatus status =
 viewTableRow : Model -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
 viewTableRow model i v = 
   let w = Array.get i model.data |> Maybe.map ww |> Maybe.withDefault (Html.td [] [Html.text ""])
-      ww d = Html.td [] (List.map (\u -> Html.img [src u, height 50] []) d.imageUrl)
-
+      ww d = Html.td [] (upload d.oid :: (List.map (\u -> Html.img [src u, height 50] []) d.imageUrl))
+      upload bucket = 
+        Html.input 
+        [ type_ "file"
+        , multiple True
+        , name "image"
+        , on "change" (D.map (GotImage bucket) fileDecoder)
+        ]
+        []
   in w :: v
 
 viewTableHRow : List (Html.Html Msg) -> List (Html.Html Msg)
@@ -389,3 +424,14 @@ viewTableHRow v = (Html.td [] [Html.text ""]) :: v
 refreshButton : Html.Html Msg
 refreshButton = Html.button [onClick RefreshData] [Html.text "Обновить"]    
 
+fileDecoder : D.Decoder (Maybe File)
+fileDecoder =
+  D.at 
+    ["target","files"] 
+    (D.map 
+      (\fs -> case fs of 
+                [] -> Nothing 
+                f :: _ -> Just f
+      ) <| D.list File.decoder
+    )
+  
