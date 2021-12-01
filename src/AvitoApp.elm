@@ -44,6 +44,8 @@ type Msg =
 
   | GotImage String (Maybe File)
   | UploadedImage (Result Http.Error ())
+  | RemoveImage String String
+  | RemovedImage (Result Http.Error ())  
 
 
 type HttpStatus = Failure String | Loading String | Success
@@ -55,6 +57,11 @@ type HttpStatus = Failure String | Loading String | Success
 --   , col3 : String
 --   }
 
+type alias Image = {
+    name : String
+  , url  : String
+  }
+
 type alias ForHouse = {
     id           : Int
   , oid          : String
@@ -63,7 +70,7 @@ type alias ForHouse = {
   , title        : String
   , description  : String
   , price        : String
-  , imageUrl     : List String
+  , imageUrl     : List Image
   , videoUrl     : String
   , addrRegion   : String
   , addrCity     : String
@@ -94,6 +101,18 @@ uploadImage bucket file =
     , timeout = Nothing
     , tracker = Nothing
     }  
+
+removeImage : String -> String -> Cmd Msg
+removeImage bucket name =
+  Http.request
+    { method = "DELETE"
+    , headers = []
+    , url = "http://localhost:3030/images/" ++ bucket ++ "/" ++ name
+    , body = Http.emptyBody
+    , expect = Http.expectWhatever RemovedImage
+    , timeout = Nothing
+    , tracker = Nothing
+    }      
 
 initModel : Model
 initModel = 
@@ -139,7 +158,7 @@ decodeForHousesList =
                       |> andMap (D.field "_forHouseTitle" D.string)
                       |> andMap (D.field "_forHouseDescription" D.string)
                       |> andMap (D.field "_forHousePrice" D.string)
-                      |> andMap (D.field "_forHouseImageUrl" (D.list D.string))
+                      |> andMap (D.field "_forHouseImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
                       |> andMap (D.field "_forHouseVideoUrl" D.string)
                       |> andMap (D.field "_forHouseAddrRegion" D.string)
                       |> andMap (D.field "_forHouseAddrCity" D.string)
@@ -270,7 +289,7 @@ forHouseToValue row =
     , ("_forHouseTitle", E.string row.title)
     , ("_forHouseDescription", E.string row.description)
     , ("_forHousePrice", E.string row.price)
-    , ("_forHouseImageUrl", E.list E.string row.imageUrl)
+    , ("_forHouseImageUrl", E.list (\x -> E.list E.string [x.name, x.url]) row.imageUrl)
     , ("_forHouseVideoUrl", E.string row.videoUrl)
     , ("_forHouseAddrRegion", E.string row.addrRegion)
     , ("_forHouseAddrCity", E.string row.addrCity)
@@ -350,10 +369,17 @@ update action model =
 
     GotImage _ Nothing -> (model, Cmd.none)
 
+    RemoveImage bucket name -> (model, removeImage bucket name)
+
     UploadedImage result ->
       case result of 
         Ok _ -> (model, getData)
         Err _ ->  ({ model | httpStatus = Failure "Ошибка загрузки картинки"}, Cmd.none)
+
+    RemovedImage result ->
+      case result of 
+        Ok _ -> (model, getData)
+        Err _ ->  ({ model | httpStatus = Failure "Ошибка удаления картинки"}, Cmd.none)        
 
 updateColumn : Int -> List ForHouse -> List String -> List ForHouse
 updateColumn i data ts = 
@@ -405,13 +431,19 @@ viewHttpStatus status =
 viewTableRow : Model -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
 viewTableRow model i v = 
   let w = Array.get i model.data |> Maybe.map ww |> Maybe.withDefault (Html.td [] [Html.text ""])
-      ww d = Html.td [] (upload d.oid :: (List.map (\u -> Html.img [src u, height 50] []) d.imageUrl))
+      ww d = Html.td [] (upload d.oid :: (List.map (\u -> Html.span [] [Html.img [src u.url, height 50] [], remove d.oid u.name]) d.imageUrl))
       upload bucket = 
         Html.input 
         [ type_ "file"
         , multiple True
         , name "image"
         , on "change" (D.map (GotImage bucket) fileDecoder)
+        ]
+        []
+      remove bucket name =
+        Html.input 
+        [ type_ "button"
+        , onClick (RemoveImage bucket name)
         ]
         []
   in w :: v
