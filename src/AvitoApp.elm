@@ -50,13 +50,6 @@ type Msg =
 
 type HttpStatus = Failure String | Loading String | Success
 
--- type alias FirstRow = {
---     id   : Int
---   , col1 : String
---   , col2 : String
---   , col3 : String
---   }
-
 type alias Image = {
     name : String
   , url  : String
@@ -151,21 +144,21 @@ initModel =
 decodeForHousesList : D.Decoder (List ForHouse)
 decodeForHousesList = 
                     D.succeed ForHouse
-                      |> andMap (D.field "_forHouseId" D.int)
-                      |> andMap (D.field "_forHouseOid" D.string)
-                      |> andMap (D.field "_forHouseCategory" D.string)
-                      |> andMap (D.field "_forHouseGoodsType" D.string)
-                      |> andMap (D.field "_forHouseTitle" D.string)
-                      |> andMap (D.field "_forHouseDescription" D.string)
-                      |> andMap (D.field "_forHousePrice" D.string)
-                      |> andMap (D.field "_forHouseImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
-                      |> andMap (D.field "_forHouseVideoUrl" D.string)
-                      |> andMap (D.field "_forHouseAddrRegion" D.string)
-                      |> andMap (D.field "_forHouseAddrCity" D.string)
-                      |> andMap (D.field "_forHouseAddrPoint" D.string)
-                      |> andMap (D.field "_forHouseAddrStreet" D.string)
-                      |> andMap (D.field "_forHouseAddrHouse" D.string)
-                      |> andMap (D.field "_forHouseContactPhone" D.string)
+                      |> andMap (D.field "_postId" D.int)
+                      |> andMap (D.field "_postOid" D.string)
+                      |> andMap (D.field "_postCategory" D.string)
+                      |> andMap (D.field "_postPost" <| D.field "_postGoodsType" D.string)
+                      |> andMap (D.field "_postTitle" D.string)
+                      |> andMap (D.field "_postDescription" D.string)
+                      |> andMap (D.field "_postPrice" D.string)
+                      |> andMap (D.field "_postImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
+                      |> andMap (D.field "_postVideoUrl" D.string)
+                      |> andMap (D.field "_postAddrRegion" D.string)
+                      |> andMap (D.field "_postAddrCity" D.string)
+                      |> andMap (D.field "_postAddrPoint" D.string)
+                      |> andMap (D.field "_postAddrStreet" D.string)
+                      |> andMap (D.field "_postAddrHouse" D.string)
+                      |> andMap (D.field "_postContactPhone" D.string)
                       |> D.list
 
 getData : Cmd Msg
@@ -219,13 +212,6 @@ saveData data =
               )
       ) |> Procedure.try ProcedureMsg DataPosted
 
-          -- Http.post 
-          --   { url = "http://localhost:3030/data/for_house"
-          --   , body = E.list forHouseToValue data |>  Http.jsonBody 
-          --   , expect = Http.expectWhatever DataPosted
-          --   }
-
-
 arrayToForHouse : Int -> Maybe String -> Array.Array String -> Maybe ForHouse
 arrayToForHouse id oid ds =
   Just (ForHouse id (oid |> Maybe.withDefault ""))
@@ -244,11 +230,6 @@ arrayToForHouse id oid ds =
     |> Maybe.andMap (Array.get 11 ds)
     -- |> Maybe.andMap (Array.get 12 ds)
    
-
--- arrayToFirstRow : Int -> Array.Array String -> Maybe FirstRow
--- arrayToFirstRow id ds =
---   Maybe.map3 (\c1 c2 c3 -> {id = id, col1 = c1, col2 = c2, col3 = c3}) (Array.get 0 ds) (Array.get 1 ds) (Array.get 2 ds)
-
 forHouseToArray : ForHouse -> Array.Array String
 forHouseToArray row = 
     Array.fromList [
@@ -267,36 +248,24 @@ forHouseToArray row =
       , row.contactPhone
     ]
 
--- firstRowToArray : FirstRow -> Array.Array String
--- firstRowToArray row = Array.fromList [row.col1, row.col2, row.col3]
-
--- firstRowToValue : FirstRow -> E.Value
--- firstRowToValue row = 
---   E.object [
---       ("_testTableId", E.int row.id)
---     , ("_testTableCol1", E.string row.col1)
---     , ("_testTableCol2", E.string row.col2)
---     , ("_testTableCol3", E.string row.col3)
---     ]
-
 forHouseToValue : ForHouse -> E.Value
 forHouseToValue row = 
   E.object [
-      ("_forHouseId", E.int row.id)
-    , ("_forHouseOid", E.string row.oid)      
-    , ("_forHouseCategory", E.string row.category)
-    , ("_forHouseGoodsType", E.string row.goodsType)
-    , ("_forHouseTitle", E.string row.title)
-    , ("_forHouseDescription", E.string row.description)
-    , ("_forHousePrice", E.string row.price)
-    , ("_forHouseImageUrl", E.list (\x -> E.list E.string [x.name, x.url]) row.imageUrl)
-    , ("_forHouseVideoUrl", E.string row.videoUrl)
-    , ("_forHouseAddrRegion", E.string row.addrRegion)
-    , ("_forHouseAddrCity", E.string row.addrCity)
-    , ("_forHouseAddrPoint", E.string row.addrPoint)
-    , ("_forHouseAddrStreet", E.string row.addrStreet)
-    , ("_forHouseAddrHouse", E.string row.addrHouse)
-    , ("_forHouseContactPhone", E.string row.contactPhone)
+      ("_postId", E.int row.id)
+    , ("_postOid", E.string row.oid)      
+    , ("_postCategory", E.string row.category)
+    , ("_postTitle", E.string row.title)
+    , ("_postDescription", E.string row.description)
+    , ("_postPrice", E.string row.price)
+    , ("_postImageUrl", E.list (\x -> E.list E.string [x.name, x.url]) row.imageUrl)
+    , ("_postVideoUrl", E.string row.videoUrl)
+    , ("_postAddrRegion", E.string row.addrRegion)
+    , ("_postAddrCity", E.string row.addrCity)
+    , ("_postAddrPoint", E.string row.addrPoint)
+    , ("_postAddrStreet", E.string row.addrStreet)
+    , ("_postAddrHouse", E.string row.addrHouse)
+    , ("_postContactPhone", E.string row.contactPhone)
+    , ("_postPost", E.object [("_postGoodsType", E.string row.goodsType)])
     ]    
 
 update : Msg -> Model -> (Model, Cmd Msg)
