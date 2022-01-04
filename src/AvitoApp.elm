@@ -200,29 +200,6 @@ decodeFieldMeta =
        (D.field "_mfLabel" D.string)
        (D.at ["_mfType", "tag"] D.string |> D.andThen fTypeDecode)
 
-
-
-
-
-                      
-                    -- D.succeed ForHouse
-                    --   |> andMap (D.field "_postId" D.int)
-                    --   |> andMap (D.field "_postOid" D.string)
-                    --   |> andMap (D.field "_postCategory" D.string)
-                    --   |> andMap (D.field "_postPost" <| D.field "_postGoodsType" D.string)
-                    --   |> andMap (D.field "_postTitle" D.string)
-                    --   |> andMap (D.field "_postDescription" D.string)
-                    --   |> andMap (D.field "_postPrice" D.string)
-                    --   |> andMap (D.field "_postImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
-                    --   |> andMap (D.field "_postVideoUrl" D.string)
-                    --   |> andMap (D.field "_postAddrRegion" D.string)
-                    --   |> andMap (D.field "_postAddrCity" D.string)
-                    --   |> andMap (D.field "_postAddrPoint" D.string)
-                    --   |> andMap (D.field "_postAddrStreet" D.string)
-                    --   |> andMap (D.field "_postAddrHouse" D.string)
-                    --   |> andMap (D.field "_postContactPhone" D.string)
-                    --   |> D.list                      
-
 getData : Cmd Msg
 getData = Http.get
       { url = "http://localhost:3030/data/for_house"
