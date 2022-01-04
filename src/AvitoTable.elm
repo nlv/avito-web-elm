@@ -138,12 +138,12 @@ update action model =
         Just (cellModel, cellCmd, updatedValue) ->
           let 
             newCells0 = updateArray2D i j (\_ -> cellModel) model.cells
-            newCells = 
+            (newCells, newIds) = 
               if model.rowsCnt == i + 1 
-              then appendEmptyCellsRow (i + 1) model.cellsInfo newCells0
-              else newCells0
+              then (appendEmptyCellsRow (i + 1) model.cellsInfo newCells0, Array.insertAt (i + 1) Nothing model.ids)
+              else (newCells0, model.ids)
             newRowsCnt = Array2D.rows newCells
-            newModel = {model | cells = newCells, rowsCnt = newRowsCnt, current = Just (Focused i j)}
+            newModel = {model | cells = newCells, ids = newIds, rowsCnt = newRowsCnt, current = Just (Focused i j)}
           in
           (
              newModel

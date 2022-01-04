@@ -32,6 +32,9 @@ import Html.Attributes exposing (name)
 
 type Msg = 
     AvitoTable Table.Msg 
+
+  | GotMeta (Result Http.Error (List Meta)) 
+
   | GotInitialData (Result Http.Error (List ForHouse)) 
   | DataPosted (Result Http.Error (List ForHouse))
   | RefreshData
@@ -73,10 +76,25 @@ type alias ForHouse = {
   , contactPhone : String
   }
 
+type FieldType = TextType | NumberType | EnumType (List (String, String))  
+
+type alias MetaField = {
+    name : String
+  , label : String
+  , ftype : FieldType
+  }
+
+type alias Meta = {
+    name : String
+  , fields : Array.Array MetaField
+  }
+
 type alias Model = {
     httpStatus : HttpStatus 
+
+  , meta : List Meta
+
   , avitoTable : Table.Model String
-  -- , data : List FirstRow
   , data : Array.Array ForHouse
   , randText : Array.Array (Maybe String)
 
@@ -117,6 +135,7 @@ initModel =
   in
   {
     httpStatus = Loading "Получаем данные"
+  , meta = [{ name = "for_houses", fields = Array.empty }]
   , avitoTable = 
       Table.initModel 
         (Array.fromList [
@@ -161,11 +180,60 @@ decodeForHousesList =
                       |> andMap (D.field "_postContactPhone" D.string)
                       |> D.list
 
+decodeMeta : D.Decoder (List Meta)
+decodeMeta = 
+  let row = D.list <| D.map2 (\n fs -> {name = n, fields = fs}) (D.field "_metaName" D.string) (D.field "_metaFields" (D.array decodeFieldMeta))
+  in
+  row
+
+decodeFieldMeta = 
+  let
+    fTypeDecode ftype =
+      case ftype of 
+        "TextFieldType" -> D.succeed TextType
+        "NumberFieldType" -> D.succeed NumberType
+        "EnumFieldType" -> D.map EnumType <| D.at ["_mfType", "contents"] (D.list <| D.map2 (\a b -> (a,b)) (D.index 0 D.string) (D.index 1 D.string))
+        _ -> D.fail "Не известный тип поля"
+  in
+  D.map3 (\n l t -> {name = n, label = l, ftype = t}) 
+       (D.field "_mfName" D.string)
+       (D.field "_mfLabel" D.string)
+       (D.at ["_mfType", "tag"] D.string |> D.andThen fTypeDecode)
+
+
+
+
+
+                      
+                    -- D.succeed ForHouse
+                    --   |> andMap (D.field "_postId" D.int)
+                    --   |> andMap (D.field "_postOid" D.string)
+                    --   |> andMap (D.field "_postCategory" D.string)
+                    --   |> andMap (D.field "_postPost" <| D.field "_postGoodsType" D.string)
+                    --   |> andMap (D.field "_postTitle" D.string)
+                    --   |> andMap (D.field "_postDescription" D.string)
+                    --   |> andMap (D.field "_postPrice" D.string)
+                    --   |> andMap (D.field "_postImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
+                    --   |> andMap (D.field "_postVideoUrl" D.string)
+                    --   |> andMap (D.field "_postAddrRegion" D.string)
+                    --   |> andMap (D.field "_postAddrCity" D.string)
+                    --   |> andMap (D.field "_postAddrPoint" D.string)
+                    --   |> andMap (D.field "_postAddrStreet" D.string)
+                    --   |> andMap (D.field "_postAddrHouse" D.string)
+                    --   |> andMap (D.field "_postContactPhone" D.string)
+                    --   |> D.list                      
+
 getData : Cmd Msg
 getData = Http.get
       { url = "http://localhost:3030/data/for_house"
       , expect = Http.expectJson GotInitialData decodeForHousesList
       }
+
+getMeta : Cmd Msg
+getMeta = Http.get
+      { url = "http://localhost:3030/meta"
+      , expect = Http.expectJson GotMeta decodeMeta
+      }      
 
 getRandText : Int -> Int -> String -> Cmd Msg
 getRandText count i str = Http.request
@@ -230,6 +298,25 @@ arrayToForHouse id oid ds =
     |> Maybe.andMap (Array.get 11 ds)
     -- |> Maybe.andMap (Array.get 12 ds)
    
+
+  --   id           : Int
+  -- , oid          : String
+  -- 0 , category     : String
+  -- 1 , goodsType    : String
+  -- 2 , title        : String
+  -- 3 , description  : String
+  -- 4 , price        : String
+  -- , imageUrl     : List Image
+  -- 5 , videoUrl     : String
+  -- 6 , addrRegion   : String
+  -- 7 , addrCity     : String
+  -- 8, addrPoint    : String
+  -- 9, addrStreet   : String
+  -- 10 , addrHouse    : String
+  -- 11 , contactPhone : String    
+
+
+
 forHouseToArray : ForHouse -> Array.Array String
 forHouseToArray row = 
     Array.fromList [
@@ -288,12 +375,18 @@ update action model =
 
 
     GotInitialData result ->
-      case result |> Debug.log "result" of
+      case result of
         Ok rows ->
           let data = Array.fromList rows 
           in
           ({ model | httpStatus = Success, data = data, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData model.avitoTable }, Cmd.none)
 
+        Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
+
+    GotMeta result ->
+      case result of
+        Ok meta -> ({ model | httpStatus = Success, meta = meta}, getData)
+        
         Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
 
     DataPosted result ->
@@ -363,7 +456,7 @@ updateColumn i data ts =
       |> List.map (\(a, c) -> arrayToForHouse c.id (Just c.oid) a |> Maybe.withDefault c)
 
 main : Program () Model Msg
-main =  Browser.element { init = \_ -> (initModel, getData), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
+main =  Browser.element { init = \_ -> (initModel, getMeta), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
 
 view : Model -> Html.Html Msg
 view model = 
