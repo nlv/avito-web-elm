@@ -11,6 +11,7 @@ import Http
 import Browser
 import Maybe.Extra as Maybe
 import Array.Extra as Array
+import Dict
 
 import Json.Decode as D
 import Json.Encode as E
@@ -35,8 +36,8 @@ type Msg =
 
   | GotMeta (Result Http.Error (List Meta)) 
 
-  | GotInitialData (Result Http.Error (List ForHouse)) 
-  | DataPosted (Result Http.Error (List ForHouse))
+  | GotInitialData (Result Http.Error (List Post)) 
+  | DataPosted (Result Http.Error (List Post))
   | RefreshData
 
   | RandText Int
@@ -58,11 +59,10 @@ type alias Image = {
   , url  : String
   }
 
-type alias ForHouse = {
+type alias Post = {
     id           : Int
   , oid          : String
   , category     : String
-  , goodsType    : String
   , title        : String
   , description  : String
   , price        : String
@@ -74,6 +74,7 @@ type alias ForHouse = {
   , addrStreet   : String
   , addrHouse    : String
   , contactPhone : String
+  , fields       : Array.Array String
   }
 
 type FieldType = TextType | NumberType | EnumType (List (String, String))  
@@ -89,13 +90,19 @@ type alias Meta = {
   , fields : Array.Array MetaField
   }
 
+type alias Data = {
+    avitoTable : Table.Model String
+  , data : Array.Array Post
+  , meta : Meta
+  }
+
 type alias Model = {
     httpStatus : HttpStatus 
 
-  , meta : List Meta
+  , mMeta : Maybe (Dict.Dict String Meta)
+  , mName : Maybe String
 
-  , avitoTable : Table.Model String
-  , data : Array.Array ForHouse
+  , mData : Maybe Data
   , randText : Array.Array (Maybe String)
 
   , procModel: Procedure.Program.Model Msg
@@ -125,22 +132,15 @@ removeImage bucket name =
     , tracker = Nothing
     }      
 
-initModel : Model
-initModel = 
+tableInfo0 : (Array.Array (String, (String -> Cell.Model)))
+tableInfo0 = 
   let categories = toPair ["Бытовая техника", "Мебель и интерьер", "Посуда и товары для кухни", "Продукты питания", "Ремонт и строительство", "Растения"]
-      goodsTypes = toPair ["Кондиционеры", "Изоляция"]
       regions = toPair ["Москва", "Омская обл.", "Новосибирская обл."]
       cities = toPair ["Москва", "Омск", "Новосибирск"]
       toPair = List.map (\i -> (i, i)) 
   in
-  {
-    httpStatus = Loading "Получаем данные"
-  , meta = [{ name = "for_houses", fields = Array.empty }]
-  , avitoTable = 
-      Table.initModel 
-        (Array.fromList [
+        Array.fromList [
               ("Категория", Cell.select categories)
-            , ("Тип договора", Cell.select goodsTypes)
             , ("Заголовок", Cell.text)
             , ("Описание", Cell.text)
             , ("Цена", Cell.text)
@@ -152,33 +152,59 @@ initModel =
             , ("Номер дома", Cell.text)
             , ("Контактный телефон", Cell.text)
             ]
-          ) 
-          Array.empty
-  , data = Array.fromList []
-  , randText = Array.fromList [Nothing, Nothing, Just "", Just "", Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing]
+
+tableInfo : Meta -> (Array.Array (String, (String -> Cell.Model)))
+tableInfo meta =
+  let fn ftype =
+        case ftype of
+          TextType -> Cell.text
+          NumberType -> Cell.text
+          EnumType opts -> Cell.select opts
+  in
+  Array.append tableInfo0 (Array.map (\f -> (f.label, fn f.ftype)) meta.fields)
+
+initModel : Model
+initModel = 
+  {
+    httpStatus = Loading "Получаем данные"
+  , mMeta = Nothing
+  , mName = Nothing
+  , mData = Nothing
+  , randText = Array.empty
 
   , procModel = Procedure.Program.init
   }
 
-decodeForHousesList : D.Decoder (List ForHouse)
-decodeForHousesList = 
-                    D.succeed ForHouse
-                      |> andMap (D.field "_postId" D.int)
-                      |> andMap (D.field "_postOid" D.string)
-                      |> andMap (D.field "_postCategory" D.string)
-                      |> andMap (D.field "_postPost" <| D.field "_postGoodsType" D.string)
-                      |> andMap (D.field "_postTitle" D.string)
-                      |> andMap (D.field "_postDescription" D.string)
-                      |> andMap (D.field "_postPrice" D.string)
-                      |> andMap (D.field "_postImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
-                      |> andMap (D.field "_postVideoUrl" D.string)
-                      |> andMap (D.field "_postAddrRegion" D.string)
-                      |> andMap (D.field "_postAddrCity" D.string)
-                      |> andMap (D.field "_postAddrPoint" D.string)
-                      |> andMap (D.field "_postAddrStreet" D.string)
-                      |> andMap (D.field "_postAddrHouse" D.string)
-                      |> andMap (D.field "_postContactPhone" D.string)
-                      |> D.list
+decodePostList : Meta -> D.Decoder (List Post)
+decodePostList meta = 
+  D.succeed Post
+    |> andMap (D.field "_postId" D.int)
+    |> andMap (D.field "_postOid" D.string)
+    |> andMap (D.field "_postCategory" D.string)
+    |> andMap (D.field "_postTitle" D.string)
+    |> andMap (D.field "_postDescription" D.string)
+    |> andMap (D.field "_postPrice" D.string)
+    |> andMap (D.field "_postImageUrl" (D.list (D.map2 (\a b -> Image a b) (D.index 0 D.string) (D.index 1 D.string))))
+    |> andMap (D.field "_postVideoUrl" D.string)
+    |> andMap (D.field "_postAddrRegion" D.string)
+    |> andMap (D.field "_postAddrCity" D.string)
+    |> andMap (D.field "_postAddrPoint" D.string)
+    |> andMap (D.field "_postAddrStreet" D.string)
+    |> andMap (D.field "_postAddrHouse" D.string)
+    |> andMap (D.field "_postContactPhone" D.string)
+    |> andMap (D.field "_postPost" (decodePostPost meta))
+    |> D.list
+
+-- todo: валидация значений, исходя из типа поля (передавать мета)
+-- decodePostPost : Meta -> D.Decoder (Dict.Dict String String)
+-- decodePostPost = D.map Dict.fromList (D.keyValuePairs D.string)
+
+
+decodePostPost : Meta -> D.Decoder (Array.Array String)
+decodePostPost meta = 
+  let dict2array d = Array.map (\f -> Dict.get f.name d) meta.fields |> Maybe.combineArray |> Maybe.withDefault Array.empty
+  in
+  D.map dict2array (D.dict D.string)
 
 decodeMeta : D.Decoder (List Meta)
 decodeMeta = 
@@ -200,10 +226,10 @@ decodeFieldMeta =
        (D.field "_mfLabel" D.string)
        (D.at ["_mfType", "tag"] D.string |> D.andThen fTypeDecode)
 
-getData : Cmd Msg
-getData = Http.get
+getData : Meta -> Cmd Msg
+getData meta = Http.get
       { url = "http://localhost:3030/data/for_house"
-      , expect = Http.expectJson GotInitialData decodeForHousesList
+      , expect = Http.expectJson GotInitialData (decodePostList meta)
       }
 
 getMeta : Cmd Msg
@@ -228,8 +254,8 @@ getRandText count i str = Http.request
 
 type alias GLS = Random.Generator (List String)
 
-saveData : List ForHouse -> Cmd Msg
-saveData data = 
+saveData : Meta -> List Post -> Cmd Msg
+saveData meta data = 
       let goid oid = 
             if oid == ""
               then UUID.generator |> Random.map (UUID.toRepresentation UUID.Compact)
@@ -241,7 +267,7 @@ saveData data =
           o3 u gs = gs |> Random.andThen (\us -> Random.constant (u :: us))
           gls : List (Random.Generator String) -> GLS
           gls gs = foldr o (Random.constant []) gs
-          data2 : Random.Generator (List ForHouse)
+          data2 : Random.Generator (List Post)
           data2 = Random.map (\hs -> List.map2 (\s h -> {h | oid = s}) hs data) (gls goids)
       in
       Procedure.fetch (\tagger -> Random.generate tagger data2)
@@ -250,70 +276,55 @@ saveData data =
             Procedure.fetchResult 
               (\tagger -> 
                 Http.post 
-                  { url = "http://localhost:3030/data/for_house"
-                  , body = E.list forHouseToValue data3 |>  Http.jsonBody 
-                  , expect = Http.expectJson tagger decodeForHousesList
+                  { url = "http://localhost:3030/data/" ++ meta.name
+                  , body = E.list (postToValue meta) data3 |>  Http.jsonBody 
+                  , expect = Http.expectJson tagger (decodePostList meta)
                   }
               )
       ) |> Procedure.try ProcedureMsg DataPosted
 
-arrayToForHouse : Int -> Maybe String -> Array.Array String -> Maybe ForHouse
-arrayToForHouse id oid ds =
-  Just (ForHouse id (oid |> Maybe.withDefault ""))
+arrayToPost : Int -> Maybe String -> Array.Array String -> Maybe Post
+arrayToPost id oid ds =
+  Just (Post id (oid |> Maybe.withDefault ""))
     |> Maybe.andMap (Array.get 0 ds)
     |> Maybe.andMap (Array.get 1 ds)
     |> Maybe.andMap (Array.get 2 ds)
     |> Maybe.andMap (Array.get 3 ds)
-    |> Maybe.andMap (Array.get 4 ds)
     |> Maybe.andMap (Just [])
+    |> Maybe.andMap (Array.get 4 ds)
     |> Maybe.andMap (Array.get 5 ds)
     |> Maybe.andMap (Array.get 6 ds)
     |> Maybe.andMap (Array.get 7 ds)
     |> Maybe.andMap (Array.get 8 ds)
     |> Maybe.andMap (Array.get 9 ds)
     |> Maybe.andMap (Array.get 10 ds)
-    |> Maybe.andMap (Array.get 11 ds)
-    -- |> Maybe.andMap (Array.get 12 ds)
-   
+    |> Maybe.andMap (Just <| Array.slice 10 ((Array.length ds) - 1) ds)
 
-  --   id           : Int
-  -- , oid          : String
-  -- 0 , category     : String
-  -- 1 , goodsType    : String
-  -- 2 , title        : String
-  -- 3 , description  : String
-  -- 4 , price        : String
-  -- , imageUrl     : List Image
-  -- 5 , videoUrl     : String
-  -- 6 , addrRegion   : String
-  -- 7 , addrCity     : String
-  -- 8, addrPoint    : String
-  -- 9, addrStreet   : String
-  -- 10 , addrHouse    : String
-  -- 11 , contactPhone : String    
+postToArray : Post -> Array.Array String
+postToArray row = 
+      let l1 = Array.fromList 
+                [
+                  row.category
+                , row.title
+                , row.description
+                , row.price
+                -- , row.imageNames
+                , row.videoUrl
+                , row.addrRegion
+                , row.addrCity
+                , row.addrPoint
+                , row.addrStreet
+                , row.addrHouse
+                , row.contactPhone
+                ]
+        in 
+        Array.append l1 row.fields
 
 
-
-forHouseToArray : ForHouse -> Array.Array String
-forHouseToArray row = 
-    Array.fromList [
-        row.category
-      , row.goodsType
-      , row.title
-      , row.description
-      , row.price
-      -- , row.imageNames
-      , row.videoUrl
-      , row.addrRegion
-      , row.addrCity
-      , row.addrPoint
-      , row.addrStreet
-      , row.addrHouse
-      , row.contactPhone
-    ]
-
-forHouseToValue : ForHouse -> E.Value
-forHouseToValue row = 
+postToValue : Meta -> Post -> E.Value
+postToValue meta row = 
+  let fields = Array.toList <| Array.zip (Array.map (.name) meta.fields) (Array.map (\s -> E.string s) row.fields)
+  in
   E.object [
       ("_postId", E.int row.id)
     , ("_postOid", E.string row.oid)      
@@ -329,76 +340,94 @@ forHouseToValue row =
     , ("_postAddrStreet", E.string row.addrStreet)
     , ("_postAddrHouse", E.string row.addrHouse)
     , ("_postContactPhone", E.string row.contactPhone)
-    , ("_postPost", E.object [("_postGoodsType", E.string row.goodsType)])
+    , ("_postPost", E.object fields)
     ]    
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
-    AvitoTable msg -> let (t, cmd, i) = Table.update msg model.avitoTable in
+    AvitoTable msg -> 
+      case model.mData of
+        Just mData -> let (t, cmd, i) = Table.update msg mData.avitoTable in
                       case i of
                         Just ds -> 
 
-                            let newData = Array.indexedMap (\j (id, a) -> arrayToForHouse j id a) ds |> Array.toList |> Maybe.combine |> Maybe.map Array.fromList |> Maybe.withDefault model.data
+                            let newData = Array.indexedMap (\j (id, a) -> arrayToPost j id a) ds |> Array.toList |> Maybe.combine |> Maybe.map Array.fromList |> Maybe.withDefault mData.data
                             in  (
                                 { model | 
-                                    avitoTable = t
-                                  , data = newData
+                                    mData = Just { mData | avitoTable = t, data = newData}
                                   , httpStatus = Loading "Сохраняем данные"
                                 }
-                                , Cmd.batch [Cmd.map AvitoTable cmd, Array.toList newData |> saveData ]
+                                , Cmd.batch [Cmd.map AvitoTable cmd, Array.toList newData |> saveData mData.meta]
                                 )
-                        Nothing -> ({model | avitoTable = t}, Cmd.map AvitoTable cmd)
-
+                        Nothing -> ({model | mData = Just { mData | avitoTable = t}}, Cmd.map AvitoTable cmd)
+        _ -> (model, Cmd.none)
 
     GotInitialData result ->
-      case result of
-        Ok rows ->
-          let data = Array.fromList rows 
-          in
-          ({ model | httpStatus = Success, data = data, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData model.avitoTable }, Cmd.none)
+      case Maybe.map2 Dict.get model.mName model.mMeta of
+         Just (Just meta) -> 
+          case result of
+            Ok rows ->
+              let data = Array.fromList rows 
+                  avitoTable = model.mData |> Maybe.andThen (\md -> Just md.avitoTable) |> Maybe.withDefault (Table.initModel (tableInfo meta) Array.empty)
+              in
+              ({ model | httpStatus = Success, mData = Just { meta = meta, data = data, avitoTable = Array.fromList (List.map postToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData avitoTable }, randText = Debug.log "randText" <| Array.repeat (Array.length (tableInfo meta)) (Just "")}, Cmd.none)
 
-        Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
+            Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
+         _ ->  (model, Cmd.none) 
 
-    GotMeta result ->
-      case result of
-        Ok meta -> ({ model | httpStatus = Success, meta = meta}, getData)
+    GotMeta result -> case result of
+        Ok meta -> case (List.head meta) of
+          Just m -> 
+            let namedMeta = List.map (\n -> (n.name, n)) meta
+            in
+            ({ model | httpStatus = Success, mMeta = Just (Dict.fromList namedMeta),  mName = Just (m.name), mData = Nothing, randText = Array.empty}, getData m)
+          Nothing -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
         
         Err _ -> ({ model | httpStatus = Failure "Ошибка получения данных"}, Cmd.none)
 
     DataPosted result ->
-      case result of
-        Ok rows ->
-          -- ({ model | httpStatus = Success}, Cmd.none)
+      case Maybe.map2 Dict.get model.mName model.mMeta of
+        Just (Just meta) ->
+          case result of
+            Ok rows ->
+              let data = Array.fromList rows 
+                  avitoTable = model.mData |> Maybe.andThen (\md -> Just md.avitoTable) |> Maybe.withDefault (Table.initModel (tableInfo meta) Array.empty)
+              in
+              ({ model | httpStatus = Success, mData = Just {meta = meta, data = data, avitoTable = Array.fromList (List.map postToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData avitoTable }}, Cmd.none)
 
-          let data = Array.fromList rows 
-          in
-          ({ model | httpStatus = Success, data = data, avitoTable = Array.fromList (List.map forHouseToArray rows) |> Array.zip (Array.map .oid data) |> Table.setData model.avitoTable }, Cmd.none)
+            Err _ ->
+              ({ model | httpStatus = Failure  "Ошибка сохраннения данных"}, Cmd.none)
+        _ -> (model, Cmd.none)  
 
-        Err _ ->
-          ({ model | httpStatus = Failure  "Ошибка сохраннения данных"}, Cmd.none)
+    RefreshData -> 
+        case model.mData of
+          Just mData -> (model, getData mData.meta)
+          Nothing -> (model, getMeta)
 
-    RefreshData -> (model, getData)
-
-    RandText i -> (
-          model 
-        , Array.get i model.randText
-            |> Maybe.andThen (Maybe.map <| getRandText (Array.length model.data) i)
-            |> Maybe.withDefault Cmd.none
-        )
-
-    
-    
+    RandText i -> 
+        case model.mData of
+            Just mData -> 
+                (
+                  model 
+                , Array.get i model.randText
+                    |> Maybe.andThen (Maybe.map <| getRandText (Array.length mData.data) i)
+                    |> Maybe.withDefault Cmd.none
+                )
+            Nothing -> (model, Cmd.none)
     -- Maybe.withDefault Cmd.none (Maybe.map (getRandText (Array.length model.data) i) (Array.get i model.randText)))
 
 
     GotRandText i result -> 
-      case result of
-        Ok ts -> 
-          let newData = updateColumn i (Array.toList model.data) ts in
-          ({model | data = Array.fromList newData, avitoTable = Array.fromList (List.map forHouseToArray newData) |> Array.zip (Array.map .oid model.data) |> Table.setData model.avitoTable}, saveData newData)
+      case model.mData of
+         Just mData ->
+          case result of
+            Ok ts -> 
+              let newData = updateColumn i (Array.toList mData.data) ts in
+              ({model | mData = Just { mData | data = Array.fromList newData, avitoTable = Array.fromList (List.map postToArray newData) |> Array.zip (Array.map .oid mData.data) |> Table.setData mData.avitoTable}}, saveData mData.meta newData)
 
-        Err _ -> ({ model | httpStatus = Failure  "Ошибка получения рандомизированного текста"}, Cmd.none)
+            Err _ -> ({ model | httpStatus = Failure  "Ошибка получения рандомизированного текста"}, Cmd.none)
+         Nothing -> (model, Cmd.none)   
    
     InputRandText i str -> ({model | randText = Array.update i (Maybe.map (\_ -> str)) model.randText}, Cmd.none)
 
@@ -411,16 +440,22 @@ update action model =
     RemoveImage bucket name -> (model, removeImage bucket name)
 
     UploadedImage result ->
-      case result of 
-        Ok _ -> (model, getData)
-        Err _ ->  ({ model | httpStatus = Failure "Ошибка загрузки картинки"}, Cmd.none)
+      case model.mData of
+        Just mData -> 
+            case result of 
+              Ok _ -> (model, getData mData.meta)
+              Err _ ->  ({ model | httpStatus = Failure "Ошибка загрузки картинки"}, Cmd.none)
+        Nothing -> (model, Cmd.none)
 
     RemovedImage result ->
-      case result of 
-        Ok _ -> (model, getData)
-        Err _ ->  ({ model | httpStatus = Failure "Ошибка удаления картинки"}, Cmd.none)        
+      case model.mData of
+        Just mData -> 
+          case result of 
+            Ok _ -> (model, getData mData.meta)
+            Err _ ->  ({ model | httpStatus = Failure "Ошибка удаления картинки"}, Cmd.none)        
+        Nothing -> (model, Cmd.none)      
 
-updateColumn : Int -> List ForHouse -> List String -> List ForHouse
+updateColumn : Int -> List Post -> List String -> List Post
 updateColumn i data ts = 
     let zip2 a b = case (a, b) of
                     (x::xs, y::ys) -> (x, Just y) :: zip2 xs ys
@@ -428,21 +463,25 @@ updateColumn i data ts =
                     ([], _) -> []
     in
          zip2 data ts
-      |> List.map (\(a, b) -> (forHouseToArray a, b, a))
+      |> List.map (\(a, b) -> (postToArray a, b, a))
       |> List.map (\(a, b, c) -> (Maybe.withDefault a <| Maybe.map (\x -> Array.set i x a) b, c))
-      |> List.map (\(a, c) -> arrayToForHouse c.id (Just c.oid) a |> Maybe.withDefault c)
+      |> List.map (\(a, c) -> arrayToPost c.id (Just c.oid) a |> Maybe.withDefault c)
 
 main : Program () Model Msg
-main =  Browser.element { init = \_ -> (initModel, getMeta), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions model.avitoTable)}
+main =  Browser.element { init = \_ -> (initModel, getMeta), update = update, view = view, subscriptions = \model -> Sub.map AvitoTable (Table.subscriptions (Table.initModel Array.empty Array.empty))}
 
 view : Model -> Html.Html Msg
 view model = 
     Html.div [] <| viewHttpStatus model.httpStatus ++ viewAvitoTable model 
  
 viewAvitoTable : Model -> List (Html.Html Msg)
-viewAvitoTable model = Table.view model.avitoTable AvitoTable (hcontrols model) viewTableHRow (viewTableRow model) 
+viewAvitoTable model = 
+  case model.mData of
+     Nothing -> [Html.div [] [Html.text "Грузится..."]]
+     Just mData -> Table.view mData.avitoTable AvitoTable (hcontrols model) viewTableHRow (viewTableRow mData.data) 
 
 hcontrols : Model -> Html.Html Msg
+-- hcontrols model = Html.tr [] []
 hcontrols model = 
   Html.tr [] 
     <| Html.td [] [] 
@@ -467,10 +506,10 @@ viewHttpStatus status =
     Loading s -> [Html.text s]
     Failure s -> [Html.text s, refreshButton]
 
-viewTableRow : Model -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
-viewTableRow model i v = 
-  let w = Array.get i model.data |> Maybe.map ww |> Maybe.withDefault (Html.td [] [Html.text ""])
-      ww d = Html.td [] (upload d.oid :: (List.map (\u -> Html.span [] [Html.img [src u.url, height 50] [], remove d.oid u.name]) d.imageUrl))
+viewTableRow : Array.Array Post -> Int -> List (Html.Html Msg) -> List (Html.Html Msg)
+viewTableRow data i v = 
+  let w = Array.get i data |> Maybe.map ww |> Maybe.withDefault (Html.td [] [Html.text ""])
+      ww d = Html.td [] ((upload d.oid :: (List.map (\u -> Html.span [] [Html.img [src u.url, height 50] [], remove d.oid u.name]) d.imageUrl)) ++ [Html.text d.oid])
       upload bucket = 
         Html.input 
         [ type_ "file"
