@@ -113,7 +113,7 @@ uploadImage bucket file =
   Http.request
     { method = "POST"
     , headers = []
-    , url = "http://localhost:3030/images/" ++ bucket
+    , url = "/api/images/" ++ bucket
     , body = Http.multipartBody [ Http.filePart "image" file ]
     , expect = Http.expectWhatever UploadedImage
     , timeout = Nothing
@@ -125,7 +125,7 @@ removeImage bucket name =
   Http.request
     { method = "DELETE"
     , headers = []
-    , url = "http://localhost:3030/images/" ++ bucket ++ "/" ++ name
+    , url = "/api/images/" ++ bucket ++ "/" ++ name
     , body = Http.emptyBody
     , expect = Http.expectWhatever RemovedImage
     , timeout = Nothing
@@ -228,13 +228,13 @@ decodeFieldMeta =
 
 getData : Meta -> Cmd Msg
 getData meta = Http.get
-      { url = "http://localhost:3030/data/for_house"
+      { url = "api/data/for_house"
       , expect = Http.expectJson GotInitialData (decodePostList meta)
       }
 
 getMeta : Cmd Msg
 getMeta = Http.get
-      { url = "http://localhost:3030/meta"
+      { url = "/api/meta"
       , expect = Http.expectJson GotMeta decodeMeta
       }      
 
@@ -276,7 +276,7 @@ saveData meta data =
             Procedure.fetchResult 
               (\tagger -> 
                 Http.post 
-                  { url = "http://localhost:3030/data/" ++ meta.name
+                  { url = "/api/data/" ++ meta.name
                   , body = E.list (postToValue meta) data3 |>  Http.jsonBody 
                   , expect = Http.expectJson tagger (decodePostList meta)
                   }

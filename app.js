@@ -6453,7 +6453,7 @@ var $elm$http$Http$get = function (r) {
 var $author$project$AvitoApp$getMeta = $elm$http$Http$get(
 	{
 		expect: A2($elm$http$Http$expectJson, $author$project$AvitoApp$GotMeta, $author$project$AvitoApp$decodeMeta),
-		url: 'http://localhost:3030/meta'
+		url: '/api/meta'
 	});
 var $author$project$AvitoApp$Loading = function (a) {
 	return {$: 'Loading', a: a};
@@ -7530,7 +7530,7 @@ var $author$project$AvitoApp$getData = function (meta) {
 				$elm$http$Http$expectJson,
 				$author$project$AvitoApp$GotInitialData,
 				$author$project$AvitoApp$decodePostList(meta)),
-			url: 'http://localhost:3030/data/for_house'
+			url: 'api/data/for_house'
 		});
 };
 var $author$project$AvitoApp$GotRandText = F2(
@@ -7639,7 +7639,7 @@ var $author$project$AvitoApp$removeImage = F2(
 				method: 'DELETE',
 				timeout: $elm$core$Maybe$Nothing,
 				tracker: $elm$core$Maybe$Nothing,
-				url: 'http://localhost:3030/images/' + (bucket + ('/' + name))
+				url: '/api/images/' + (bucket + ('/' + name))
 			});
 	});
 var $TSFoster$elm_uuid$UUID$Compact = {$: 'Compact'};
@@ -8310,7 +8310,7 @@ var $author$project$AvitoApp$saveData = F2(
 										$elm$http$Http$expectJson,
 										tagger,
 										$author$project$AvitoApp$decodePostList(meta)),
-									url: 'http://localhost:3030/data/' + meta.name
+									url: '/api/data/' + meta.name
 								});
 						});
 				},
@@ -10333,7 +10333,7 @@ var $author$project$AvitoApp$uploadImage = F2(
 				method: 'POST',
 				timeout: $elm$core$Maybe$Nothing,
 				tracker: $elm$core$Maybe$Nothing,
-				url: 'http://localhost:3030/images/' + bucket
+				url: '/api/images/' + bucket
 			});
 	});
 var $author$project$AvitoApp$update = F2(
